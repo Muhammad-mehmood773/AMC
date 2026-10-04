@@ -1,0 +1,12 @@
+@theme {
+  --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-ink: #0f172a;
+  --color-ink-muted: #475569;
+  --color-brand: #0f766e;
+  --color-brand-foreground: #f0fdfa;
+  --color-line: #e2e8f0;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
