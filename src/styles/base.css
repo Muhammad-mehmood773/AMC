@@ -1,10 +1,78 @@
 @layer base {
+  :root {
+    --amc-control-h: 2.5rem;
+    --amc-cell-py: 0.75rem;
+    --amc-gap: 1.5rem;
+    color-scheme: light;
+  }
+
+  [data-density='compact'] {
+    --amc-control-h: 2.125rem;
+    --amc-cell-py: 0.45rem;
+    --amc-gap: 1rem;
+  }
+
+  [data-font='plex'] {
+    --font-sans: 'IBM Plex Sans', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-font='system'] {
+    --font-sans:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --color-canvas: #0a0e15;
+    --color-surface: #111721;
+    --color-surface-muted: #151c27;
+    --color-surface-sunken: #0d121a;
+    --color-ink: #e6eaf0;
+    --color-ink-muted: #9ba7b9;
+    --color-ink-subtle: #64748b;
+    --color-line: #1f2836;
+    --color-line-strong: #2d3848;
+    --color-brand: color-mix(in oklab, var(--amc-primary, #0f766e) 68%, white);
+    --color-brand-hover: color-mix(in oklab, var(--color-brand) 82%, white);
+    --color-brand-foreground: #0a0e15;
+    --color-brand-subtle: color-mix(in oklab, var(--color-brand) 13%, var(--color-surface));
+    --color-brand-ring: color-mix(in oklab, var(--color-brand) 32%, transparent);
+    --color-ok: #34d399;
+    --color-ok-subtle: rgb(52 211 153 / 0.1);
+    --color-warn: #fbbf24;
+    --color-warn-subtle: rgb(251 191 36 / 0.1);
+    --color-danger: #fb7185;
+    --color-danger-subtle: rgb(251 113 133 / 0.1);
+    --color-secondary: color-mix(in oklab, var(--amc-secondary, #2563eb) 62%, white);
+    --color-info: var(--color-secondary);
+    --color-info-subtle: color-mix(in oklab, var(--color-info) 13%, var(--color-surface));
+    --color-accent: color-mix(in oklab, var(--amc-accent, #7c3aed) 62%, white);
+    --color-accent-subtle: color-mix(in oklab, var(--color-accent) 13%, var(--color-surface));
+    --shadow-card: 0 0 0 0 transparent;
+    --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.04);
+  }
+
+  [data-contrast='high'] {
+    --color-line: var(--color-line-strong);
+    --color-ink-muted: color-mix(in oklab, var(--color-ink) 82%, var(--color-surface));
+    --color-ink-subtle: color-mix(in oklab, var(--color-ink) 62%, var(--color-surface));
+  }
+
+  [data-motion='reduced'] *,
+  [data-motion='reduced'] *::before,
+  [data-motion='reduced'] *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
   html {
     font-family: var(--font-sans);
     color: var(--color-ink);
-    background-color: var(--color-surface);
+    background-color: var(--color-canvas);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   body {
@@ -12,13 +80,123 @@
     min-height: 100%;
   }
 
-  .dark {
-    --color-surface: #0b1220;
-    --color-surface-muted: #111827;
-    --color-ink: #e2e8f0;
-    --color-ink-muted: #94a3b8;
-    --color-brand: #2dd4bf;
-    --color-brand-foreground: #042f2e;
-    --color-line: #1f2937;
+  ::selection {
+    background-color: var(--color-brand-ring);
   }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@utility amc-card {
+  @apply rounded-xl border border-line bg-surface shadow-card;
+}
+
+@utility amc-btn {
+  @apply inline-flex h-(--amc-control-h) shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility amc-btn-primary {
+  @apply amc-btn bg-brand text-brand-foreground shadow-sm hover:bg-brand-hover disabled:hover:bg-brand;
+}
+
+@utility amc-btn-secondary {
+  @apply amc-btn border border-line-strong bg-surface text-ink shadow-xs hover:bg-surface-sunken disabled:hover:bg-surface;
+}
+
+@utility amc-btn-ghost {
+  @apply amc-btn text-ink-muted hover:bg-surface-sunken hover:text-ink;
+}
+
+@utility amc-btn-danger {
+  @apply amc-btn bg-danger text-white shadow-sm hover:opacity-90 dark:text-surface;
+}
+
+@utility amc-btn-sm {
+  @apply h-8 gap-1.5 rounded-md px-2.5 text-xs;
+}
+
+@utility amc-btn-icon {
+  @apply amc-btn h-9 w-9 px-0 text-ink-muted hover:bg-surface-sunken hover:text-ink;
+}
+
+@utility amc-label {
+  @apply block text-sm font-medium text-ink;
+}
+
+@utility amc-input {
+  @apply block h-(--amc-control-h) w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink shadow-xs transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-subtle disabled:hover:border-line-strong;
+
+  &[data-active='true'] {
+    border-color: var(--color-brand);
+  }
+  &.ng-invalid.ng-touched,
+  &[aria-invalid='true'] {
+    border-color: var(--color-danger);
+  }
+  &.ng-invalid.ng-touched:focus,
+  &[aria-invalid='true']:focus {
+    --tw-ring-color: color-mix(in oklab, var(--color-danger) 20%, transparent);
+  }
+}
+
+@utility amc-select {
+  @apply amc-input cursor-pointer appearance-none bg-no-repeat pr-9;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-size: 1.25rem;
+  background-position: right 0.5rem center;
+}
+
+@utility amc-textarea {
+  @apply amc-input h-auto min-h-24 py-2 leading-relaxed;
+}
+
+@utility amc-checkbox {
+  @apply relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-[5px] border border-line-strong bg-surface bg-center bg-no-repeat transition-colors hover:border-ink-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50;
+  background-size: 12px;
+
+  &:checked,
+  &:indeterminate {
+    background-color: var(--color-brand);
+    border-color: var(--color-brand);
+  }
+  &:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M3.5 8.5l3 3 6-7'/%3e%3c/svg%3e");
+  }
+  &:indeterminate {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round'%3e%3cpath d='M4 8h8'/%3e%3c/svg%3e");
+  }
+  :where(.dark) &:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230a0e15' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M3.5 8.5l3 3 6-7'/%3e%3c/svg%3e");
+  }
+  :where(.dark) &:indeterminate {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230a0e15' stroke-width='2.5' stroke-linecap='round'%3e%3cpath d='M4 8h8'/%3e%3c/svg%3e");
+  }
+}
+
+@utility amc-link {
+  @apply font-medium text-brand hover:text-brand-hover hover:underline;
+}
+
+@utility amc-th {
+  @apply px-4 py-2.5 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-ink-muted;
+}
+
+@utility amc-td {
+  @apply px-4 py-(--amc-cell-py) align-middle text-sm text-ink;
+}
+
+@utility amc-overline {
+  @apply text-[11px] font-semibold tracking-[0.08em] text-ink-subtle uppercase;
 }

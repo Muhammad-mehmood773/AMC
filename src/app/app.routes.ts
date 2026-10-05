@@ -4,6 +4,7 @@ import { guestGuard } from '@core/guards/guest.guard';
 import { permissionGuard } from '@core/guards/permission.guard';
 
 export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'app' },
   {
     path: '',
     loadComponent: () => import('@layout/public-layout').then((m) => m.PublicLayout),

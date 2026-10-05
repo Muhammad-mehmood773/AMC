@@ -1,0 +1,413 @@
+@let editing = isEdit();
+@let title = editing ? 'Edit Customer' : 'New Customer';
+
+<div class="space-y-5 pb-4">
+  <amc-page-header
+    [title]="title"
+    [subtitle]="
+      editing
+        ? 'Update the master record, registration, commercial and operational details.'
+        : 'Create the master record for a customer organization.'
+    "
+    [breadcrumbs]="[
+      { label: 'Customers & Sites', path: '/app/customers/dashboard' },
+      { label: 'Customers', path: '/app/customers/list' },
+      ...(editing && existing.hasValue() && existing.value()
+        ? [{ label: existing.value()!.name, path: '/app/customers/' + customerId() }]
+        : []),
+      { label: editing ? 'Edit' : 'New' },
+    ]"
+  >
+    @if (editing && existing.hasValue() && existing.value()) {
+      <amc-status-badge
+        [label]="existing.value()!.status"
+        [tone]="statusTone[existing.value()!.status]"
+      />
+    }
+  </amc-page-header>
+
+  @if (editing && existing.error()) {
+    <div class="amc-card">
+      <amc-error-state
+        title="Customer not found"
+        message="This customer could not be loaded. It may have been removed or the link is incorrect."
+        (retry)="existing.reload()"
+      />
+    </div>
+  } @else if (editing && existing.isLoading() && !existing.hasValue()) {
+    <div class="amc-card space-y-4 p-6">
+      @for (i of [1, 2, 3]; track i) {
+        <amc-skeleton class="h-4 w-48" />
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <amc-skeleton class="h-10" />
+          <amc-skeleton class="h-10" />
+          <amc-skeleton class="h-10" />
+        </div>
+      }
+    </div>
+  } @else {
+    <form
+      [formGroup]="form"
+      class="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]"
+      novalidate
+      (ngSubmit)="save('save')"
+    >
+      <!-- Section navigation -->
+      <nav class="hidden lg:block" aria-label="Form sections">
+        <ul class="sticky top-24 space-y-0.5">
+          @for (section of sections; track section.id) {
+            <li>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+                (click)="scrollTo(section.id)"
+              >
+                <amc-icon [name]="section.icon" class="text-ink-subtle" />
+                <span class="flex-1 truncate">{{ section.label }}</span>
+                @if (sectionInvalid(section.group)) {
+                  <span class="h-2 w-2 rounded-full bg-danger" aria-label="Has errors"></span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <div class="min-w-0 space-y-5">
+        @if (duplicates().length) {
+          <div
+            class="flex animate-fade-in gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4"
+            role="alert"
+          >
+            <amc-icon name="alert-triangle" [size]="18" class="mt-0.5 text-warn" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-ink">Possible duplicate customer</p>
+              <p class="mt-0.5 text-sm text-ink-muted">
+                The details entered match existing customer records. Review them before saving.
+              </p>
+              <ul class="mt-2 space-y-1.5">
+                @for (match of duplicates(); track match.customerId) {
+                  <li class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                    <a
+                      [routerLink]="['/app/customers', match.customerId]"
+                      target="_blank"
+                      class="amc-link"
+                      >{{ match.name }}</a
+                    >
+                    <span class="font-mono text-xs text-ink-muted">{{ match.code }}</span>
+                    <amc-status-badge [label]="match.status" [tone]="statusTone[match.status]" />
+                    <span class="text-xs text-ink-muted">
+                      Matched on:
+                      @for (field of match.matchedOn; track field; let last = $last) {
+                        {{ duplicateLabels[field] }}{{ last ? '' : ', ' }}
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- A. Basic information -->
+        @let b = form.controls.basic;
+        <amc-panel
+          id="section-basic"
+          class="scroll-mt-24"
+          title="Basic information"
+          description="Identity and classification of the customer"
+          icon="building"
+          formGroupName="basic"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field
+              label="Customer Code"
+              for="cf-code"
+              [control]="b.controls.code"
+              [messages]="patternMessages.code"
+              [hint]="editing ? 'Codes cannot be changed after creation.' : 'Auto-generated; you may override it.'"
+            >
+              <input id="cf-code" class="amc-input font-mono uppercase" formControlName="code" autocomplete="off" />
+            </amc-form-field>
+            <amc-form-field label="Customer Name" for="cf-name" [control]="b.controls.name" class="sm:col-span-1 xl:col-span-2">
+              <input
+                id="cf-name"
+                class="amc-input"
+                formControlName="name"
+                placeholder="e.g. King Faisal Specialist Medical Group"
+                (blur)="copyLegalName()"
+              />
+            </amc-form-field>
+            <amc-form-field
+              label="Legal Entity Name"
+              for="cf-legal"
+              [control]="b.controls.legalName"
+              hint="As shown on the commercial registration."
+              class="sm:col-span-2 xl:col-span-3"
+            >
+              <input id="cf-legal" class="amc-input" formControlName="legalName" placeholder="Registered legal name" />
+            </amc-form-field>
+            <amc-form-field label="Customer Type" for="cf-type" [control]="b.controls.type">
+              <amc-select inputId="cf-type" formControlName="type" [options]="typeOptions" />
+            </amc-form-field>
+            <amc-form-field label="Customer Category" for="cf-category" [control]="b.controls.category">
+              <amc-select inputId="cf-category" formControlName="category" [options]="categoryOptions" />
+            </amc-form-field>
+            <amc-form-field
+              label="Customer Status"
+              for="cf-status"
+              [control]="b.controls.status"
+              [hint]="b.value.status === 'Inactive' || b.value.status === 'Archived' ? 'New operational transactions will be blocked.' : ''"
+            >
+              <amc-select inputId="cf-status" formControlName="status" [options]="statusOptions" />
+            </amc-form-field>
+            <amc-form-field label="Company" for="cf-company" [control]="b.controls.companyId">
+              <amc-select inputId="cf-company" formControlName="companyId" [options]="lookups.companyOptions()" placeholder="Select company…" />
+            </amc-form-field>
+            <amc-form-field label="Branch" for="cf-branch" [control]="b.controls.branchId" [hint]="b.value.companyId ? '' : 'Select a company first.'">
+              <amc-select inputId="cf-branch" formControlName="branchId" [options]="branchOptions()" placeholder="Select branch…" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- B. Legal & registration -->
+        @let l = form.controls.legal;
+        <amc-panel
+          id="section-legal"
+          class="scroll-mt-24"
+          title="Legal & registration"
+          description="Statutory identifiers used for invoicing and compliance"
+          icon="file-check"
+          formGroupName="legal"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Commercial Registration (CR) Number" for="cf-cr" [control]="l.controls.crNumber" [messages]="patternMessages.crNumber" hint="10 digits">
+              <input id="cf-cr" class="amc-input font-mono" formControlName="crNumber" inputmode="numeric" maxlength="10" placeholder="1010123456" />
+            </amc-form-field>
+            <amc-form-field label="VAT / Tax Registration Number" for="cf-vat" [control]="l.controls.vatNumber" [messages]="patternMessages.vatNumber" hint="15 digits, starts and ends with 3">
+              <input id="cf-vat" class="amc-input font-mono" formControlName="vatNumber" inputmode="numeric" maxlength="15" placeholder="300000000000003" />
+            </amc-form-field>
+            <amc-form-field label="National Address Reference" for="cf-nat" [control]="l.controls.nationalAddressRef" [messages]="patternMessages.nationalAddress" hint="Short address, e.g. RRRD2929">
+              <input id="cf-nat" class="amc-input font-mono uppercase" formControlName="nationalAddressRef" maxlength="8" />
+            </amc-form-field>
+            <amc-form-field label="Industry" for="cf-industry" [control]="l.controls.industry">
+              <amc-select inputId="cf-industry" formControlName="industry" [options]="lookups.industryOptions()" placeholder="Select industry…" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Company Registration Date" for="cf-regdate" [control]="l.controls.registrationDate">
+              <amc-date-picker inputId="cf-regdate" formControlName="registrationDate" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- C. Primary address -->
+        <amc-panel
+          id="section-address"
+          class="scroll-mt-24"
+          title="Primary address"
+          description="Registered business address of the customer"
+          icon="map-pin"
+        >
+          <amc-address-fields [group]="form.controls.address" idPrefix="cf" />
+        </amc-panel>
+
+        <!-- D. Primary contact -->
+        @let c = form.controls.contact;
+        <amc-panel
+          id="section-contact"
+          class="scroll-mt-24"
+          title="Primary contact"
+          [description]="editing ? 'Updates the customer’s primary contact record' : 'Created as the customer’s primary contact'"
+          icon="user"
+          formGroupName="contact"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Contact Name" for="cf-cname" [control]="c.controls.name">
+              <input id="cf-cname" class="amc-input" formControlName="name" placeholder="First and last name" autocomplete="name" />
+            </amc-form-field>
+            <amc-form-field label="Designation" for="cf-designation" [control]="c.controls.designation">
+              <input id="cf-designation" class="amc-input" formControlName="designation" placeholder="e.g. Facility Director" />
+            </amc-form-field>
+            <amc-form-field label="Department" for="cf-department" [control]="c.controls.department">
+              <input id="cf-department" class="amc-input" formControlName="department" placeholder="e.g. Operations" />
+            </amc-form-field>
+            <amc-form-field label="Email" for="cf-email" [control]="c.controls.email">
+              <input id="cf-email" type="email" class="amc-input" formControlName="email" placeholder="name@company.com" autocomplete="email" />
+            </amc-form-field>
+            <amc-form-field label="Mobile" for="cf-mobile" [control]="c.controls.mobile" [messages]="patternMessages.phone">
+              <input id="cf-mobile" type="tel" class="amc-input" formControlName="mobile" placeholder="+966 5X XXX XXXX" autocomplete="tel" />
+            </amc-form-field>
+            <amc-form-field label="Phone" for="cf-phone" [control]="c.controls.phone" [messages]="patternMessages.phone">
+              <input id="cf-phone" type="tel" class="amc-input" formControlName="phone" placeholder="+966 11 XXX XXXX" />
+            </amc-form-field>
+            <amc-form-field label="Preferred Communication Method" for="cf-comm" [control]="c.controls.preferredCommunication">
+              <amc-select inputId="cf-comm" formControlName="preferredCommunication" [options]="communicationOptions" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- E. Commercial -->
+        @let m = form.controls.commercial;
+        <amc-panel
+          id="section-commercial"
+          class="scroll-mt-24"
+          title="Commercial information"
+          description="Ownership, pricing and billing defaults"
+          icon="briefcase"
+          formGroupName="commercial"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Account Manager" for="cf-am" [control]="m.controls.accountManagerId">
+              <amc-select inputId="cf-am" formControlName="accountManagerId" [options]="lookups.accountManagerOptions()" placeholder="Select account manager…" />
+            </amc-form-field>
+            <amc-form-field label="Sales Representative" for="cf-sales" [control]="m.controls.salesRepId">
+              <amc-select inputId="cf-sales" formControlName="salesRepId" [options]="lookups.salesRepOptions()" placeholder="Not assigned" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Payment Terms" for="cf-terms" [control]="m.controls.paymentTermsId">
+              <amc-select inputId="cf-terms" formControlName="paymentTermsId" [options]="lookups.paymentTermOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Currency" for="cf-currency" [control]="m.controls.currency">
+              <amc-select inputId="cf-currency" formControlName="currency" [options]="lookups.currencyOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Customer Credit Limit" for="cf-credit" [control]="m.controls.creditLimit" hint="Leave empty for no limit.">
+              <div class="relative">
+                <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-subtle">{{ m.value.currency }}</span>
+                <input id="cf-credit" type="number" min="0" step="1000" class="amc-input pl-12 tabular-nums" formControlName="creditLimit" placeholder="0" />
+              </div>
+            </amc-form-field>
+            <amc-form-field label="Tax Profile" for="cf-tax" [control]="m.controls.taxProfileId">
+              <amc-select inputId="cf-tax" formControlName="taxProfileId" [options]="lookups.taxProfileOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Price List" for="cf-price" [control]="m.controls.priceListId">
+              <amc-select inputId="cf-price" formControlName="priceListId" [options]="lookups.priceListOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Billing Cycle" for="cf-billing" [control]="m.controls.billingCycle">
+              <amc-select inputId="cf-billing" formControlName="billingCycle" [options]="billingOptions" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- F. Operational -->
+        @let o = form.controls.operational;
+        <amc-panel
+          id="section-operational"
+          class="scroll-mt-24"
+          title="Operational information"
+          description="Service defaults inherited by new sites and requests"
+          icon="sliders"
+          formGroupName="operational"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Service Priority" for="cf-priority" [control]="o.controls.servicePriority">
+              <amc-select inputId="cf-priority" formControlName="servicePriority" [options]="priorityOptions" />
+            </amc-form-field>
+            <amc-form-field label="Default SLA" for="cf-sla" [control]="o.controls.defaultSlaId">
+              <amc-select inputId="cf-sla" formControlName="defaultSlaId" [options]="lookups.slaOptions()" placeholder="No default SLA" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Region" for="cf-sregion" [control]="o.controls.serviceRegion">
+              <amc-select inputId="cf-sregion" formControlName="serviceRegion" [options]="lookups.serviceRegionOptions()" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Territory" for="cf-territory" [control]="o.controls.serviceTerritoryId">
+              <amc-select inputId="cf-territory" formControlName="serviceTerritoryId" [options]="territoryOptions()" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Preferred Service Window" for="cf-window" [control]="o.controls.preferredServiceWindow">
+              <amc-select inputId="cf-window" formControlName="preferredServiceWindow" [options]="windowOptions" placeholder="No preference" [clearable]="true" />
+            </amc-form-field>
+            <div class="flex items-end pb-1">
+              <amc-switch
+                formControlName="portalAccess"
+                inputId="cf-portal"
+                label="Customer Portal Access"
+                description="Allow customer contacts to sign in to the portal."
+              />
+            </div>
+          </div>
+        </amc-panel>
+
+        <!-- G. Notes & documents -->
+        @let n = form.controls.notes;
+        <amc-panel
+          id="section-notes"
+          class="scroll-mt-24"
+          title="Notes & documents"
+          description="Internal context and customer-facing notes"
+          icon="sticky-note"
+          formGroupName="notes"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 lg:grid-cols-2">
+            <amc-form-field label="Internal Notes" for="cf-inotes" [control]="n.controls.internalNotes" hint="Visible to internal users only.">
+              <textarea id="cf-inotes" class="amc-textarea" formControlName="internalNotes" placeholder="Escalation preferences, account context…"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Customer Notes" for="cf-cnotes" [control]="n.controls.customerNotes" hint="Shared with the customer where applicable.">
+              <textarea id="cf-cnotes" class="amc-textarea" formControlName="customerNotes" placeholder="Site access rules, communication preferences…"></textarea>
+            </amc-form-field>
+            <div class="lg:col-span-2">
+              <span class="amc-label">Attachments</span>
+              <label
+                for="cf-files"
+                class="mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line-strong bg-surface-muted px-4 py-6 text-center transition-colors hover:border-brand hover:bg-brand-subtle focus-within:border-brand"
+              >
+                <amc-icon name="upload" [size]="20" class="text-ink-subtle" />
+                <span class="text-sm font-medium text-ink">Click to attach files</span>
+                <span class="text-xs text-ink-muted">PDF, images or Office documents · up to 10 MB each</span>
+                <input id="cf-files" type="file" multiple class="sr-only" (change)="onFiles($event)" />
+              </label>
+              @if (attachments().length) {
+                <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
+                  @for (file of attachments(); track file) {
+                    <li class="flex items-center gap-3 px-3 py-2">
+                      <amc-icon name="paperclip" class="text-ink-subtle" />
+                      <span class="min-w-0 flex-1 truncate text-sm">{{ file.name }}</span>
+                      <span class="text-xs text-ink-muted">{{ formatFileSize(file.size) }}</span>
+                      <button type="button" class="amc-btn-icon h-7 w-7" [attr.aria-label]="'Remove ' + file.name" (click)="removeFile(file)">
+                        <amc-icon name="x" [size]="14" />
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        </amc-panel>
+      </div>
+
+      <!-- Sticky action bar -->
+      <div
+        class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:col-span-2 lg:-mx-8 lg:px-8"
+      >
+        <div class="flex items-center gap-2">
+          <p class="mr-auto hidden text-xs text-ink-muted md:block">
+            @if (form.dirty) {
+              <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-warn"></span>Unsaved changes</span>
+            } @else {
+              Fields marked <span class="text-danger">*</span> are required.
+            }
+          </p>
+          <a [routerLink]="editing ? ['/app/customers', customerId()] : '/app/customers/list'" class="amc-btn-ghost">Cancel</a>
+          <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('contact')">
+            Save &amp; Add Contact
+          </button>
+          <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving() || b.value.status === 'Inactive' || b.value.status === 'Archived'" (click)="save('site')">
+            Save &amp; Add Site
+          </button>
+          <amc-action-menu
+            class="sm:hidden"
+            ariaLabel="More save options"
+            [items]="[
+              { id: 'contact', label: 'Save & Add Contact', icon: 'user-plus' },
+              { id: 'site', label: 'Save & Add Site', icon: 'map-pin', disabled: b.value.status === 'Inactive' || b.value.status === 'Archived' },
+            ]"
+            (action)="onMoreAction($event)"
+          />
+          <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">
+            @if (saving()) {
+              <amc-spinner [size]="14" />
+            } @else {
+              <amc-icon name="save" />
+            }
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+</div>

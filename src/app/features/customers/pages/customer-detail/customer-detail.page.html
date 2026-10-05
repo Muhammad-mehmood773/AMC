@@ -1,0 +1,403 @@
+@if (customer.error()) {
+  <div class="amc-card">
+    <amc-error-state
+      title="Customer not found"
+      message="This customer could not be loaded. It may not exist or you may not have access."
+      (retry)="customer.reload()"
+    />
+    <div class="-mt-6 pb-8 text-center">
+      <a routerLink="/app/customers/list" class="amc-link text-sm">Back to customers</a>
+    </div>
+  </div>
+} @else if (!c()) {
+  <div class="space-y-5" aria-busy="true">
+    <div class="amc-card flex items-center gap-4 p-5">
+      <amc-skeleton class="h-14 w-14 rounded-xl" />
+      <div class="flex-1 space-y-2">
+        <amc-skeleton class="h-5 w-64" />
+        <amc-skeleton class="h-3.5 w-40" />
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+        <amc-skeleton class="h-24 rounded-xl" />
+      }
+    </div>
+  </div>
+} @else {
+  @let cust = c()!;
+  <div class="space-y-5">
+    <amc-breadcrumbs
+      [items]="[
+        { label: 'Customers & Sites', path: '/app/customers/dashboard' },
+        { label: 'Customers', path: '/app/customers/list' },
+        { label: cust.name },
+      ]"
+    />
+
+    <!-- Customer header -->
+    <header class="amc-card p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <amc-avatar [name]="cust.name" size="lg" />
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ cust.name }}</h1>
+              <amc-status-badge [label]="cust.status" [tone]="statusTone[cust.status]" />
+            </div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+              <span class="font-mono text-[13px]">{{ cust.code }}</span>
+              <span class="text-ink-subtle">·</span>
+              <span>{{ cust.type }}</span>
+              <span class="text-ink-subtle">·</span>
+              <span>{{ cust.category }}</span>
+            </p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Primary contact</dt>
+                <amc-icon name="user" class="text-ink-subtle" />
+                <dd class="text-ink">{{ cust.primaryContactName ?? 'No primary contact' }}</dd>
+              </div>
+              @if (cust.phone) {
+                <div class="flex items-center gap-1.5">
+                  <dt class="sr-only">Phone</dt>
+                  <amc-icon name="phone" class="text-ink-subtle" />
+                  <dd><a [href]="'tel:' + cust.phone" class="text-ink hover:text-brand">{{ cust.phone }}</a></dd>
+                </div>
+              }
+              @if (cust.email) {
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <dt class="sr-only">Email</dt>
+                  <amc-icon name="mail" class="text-ink-subtle" />
+                  <dd class="truncate"><a [href]="'mailto:' + cust.email" class="text-ink hover:text-brand">{{ cust.email }}</a></dd>
+                </div>
+              }
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Account manager</dt>
+                <amc-icon name="briefcase" class="text-ink-subtle" />
+                <dd class="text-ink">{{ cust.accountManagerName ?? 'Unassigned' }}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          <button type="button" class="amc-btn-icon" aria-label="Refresh" title="Refresh" (click)="refresh()">
+            <amc-icon name="refresh" [class.animate-spin]="customer.isLoading()" />
+          </button>
+          <a
+            [routerLink]="['/app/customers/sites/new']"
+            [queryParams]="{ customerId: cust.id }"
+            class="amc-btn-secondary"
+            [class.pointer-events-none]="blocked()"
+            [class.opacity-50]="blocked()"
+            [attr.aria-disabled]="blocked()"
+            [attr.tabindex]="blocked() ? -1 : null"
+          >
+            <amc-icon name="map-pin" />
+            Add Site
+          </a>
+          <a [routerLink]="['/app/customers', cust.id, 'edit']" class="amc-btn-primary">
+            <amc-icon name="pencil" />
+            Edit Customer
+          </a>
+          <amc-action-menu label="Actions" [items]="moreActions()" (action)="onMoreAction($event)" />
+        </div>
+      </div>
+    </header>
+
+    @if (blocked()) {
+      <div class="flex flex-col gap-3 rounded-xl border border-line-strong bg-surface-sunken p-4 sm:flex-row sm:items-center" role="status">
+        <amc-icon name="lock" [size]="18" class="text-ink-muted" />
+        <p class="flex-1 text-sm text-ink-muted">
+          This customer is <span class="font-medium text-ink">{{ cust.status.toLowerCase() }}</span>.
+          New sites, contracts, AMCs and service requests are restricted. Historical records remain available.
+        </p>
+        <button type="button" class="amc-btn-secondary amc-btn-sm" (click)="setStatus('Active')">Reactivate</button>
+      </div>
+    } @else if (cust.status === 'On Hold') {
+      <div class="flex items-center gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="status">
+        <amc-icon name="alert-triangle" [size]="18" class="text-warn" />
+        <p class="text-sm text-ink-muted">This customer is <span class="font-medium text-ink">on hold</span>. Review commercial status before committing new work.</p>
+      </div>
+    }
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="space-y-5">
+          <section class="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Customer indicators">
+            <amc-kpi-card label="Total Sites" icon="map-pin" tone="brand" [value]="cust.totalSites" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('sites')" />
+            <amc-kpi-card label="Total Assets" icon="box" tone="accent" [value]="cust.totalAssets" [hint]="cust.activeAssets + ' in service'" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('assets')" />
+            <amc-kpi-card label="Active Contracts" icon="file-check" tone="ok" [value]="cust.activeContracts" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('contracts')" />
+            <amc-kpi-card label="Active AMCs" icon="shield-check" tone="ok" [value]="cust.activeAmcs" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('amcs')" />
+            <amc-kpi-card label="Open Service Requests" icon="ticket" tone="warn" [value]="cust.openServiceRequests" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('service-requests')" />
+            <amc-kpi-card label="Open Work Orders" icon="wrench" tone="info" [value]="cust.openWorkOrders" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('work-orders')" />
+            <amc-kpi-card label="Completed Services" icon="check-circle" tone="ok" [value]="cust.completedServices" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('service-history')" />
+            <amc-kpi-card label="Outstanding Amount" icon="wallet" [tone]="cust.outstandingAmount > 0 ? 'danger' : 'neutral'" [value]="formatCurrency(cust.outstandingAmount, cust.commercial.currency)" [link]="'/app/customers/' + cust.id" [queryParams]="tabLink('invoices')" />
+          </section>
+
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div class="space-y-5 xl:col-span-2">
+              <amc-panel title="Company profile" icon="building">
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <amc-detail-item class="sm:col-span-2 lg:col-span-3" label="Legal Entity Name" [value]="cust.legalName" />
+                  <amc-detail-item label="CR Number" [value]="cust.crNumber" [mono]="true" />
+                  <amc-detail-item label="VAT / Tax Registration" [value]="cust.vatNumber" [mono]="true" />
+                  <amc-detail-item label="National Address Ref." [value]="cust.nationalAddressRef" [mono]="true" />
+                  <amc-detail-item label="Industry" [value]="cust.industry" />
+                  <amc-detail-item label="Registration Date" [value]="formatDate(cust.registrationDate)" />
+                  <amc-detail-item label="Customer Since" [value]="formatDate(cust.createdAt)" />
+                  <amc-detail-item label="Company" [value]="lookups.name('companies', cust.companyId)" />
+                  <amc-detail-item label="Branch" [value]="lookups.name('branches', cust.branchId)" />
+                  <amc-detail-item label="Last Updated" [value]="cust.updatedAt ? formatDateTime(cust.updatedAt) + ' · ' + cust.updatedBy : formatDateTime(cust.createdAt) + ' · ' + cust.createdBy" />
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Primary address" icon="map-pin">
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+                  <amc-detail-item class="col-span-2 lg:col-span-4" label="Address" [value]="cust.address.addressLine" />
+                  <amc-detail-item label="Country" [value]="cust.address.country" />
+                  <amc-detail-item label="Region" [value]="cust.address.region" />
+                  <amc-detail-item label="City" [value]="cust.address.city" />
+                  <amc-detail-item label="District" [value]="cust.address.district" />
+                  <amc-detail-item label="Street" [value]="cust.address.street" />
+                  <amc-detail-item label="Building No." [value]="cust.address.buildingNumber" />
+                  <amc-detail-item label="Postal Code" [value]="cust.address.postalCode" />
+                  <amc-detail-item label="Additional No." [value]="cust.address.additionalNumber" />
+                  @if (cust.address.latitude !== null && cust.address.longitude !== null) {
+                    <div class="col-span-2">
+                      <dt class="text-xs font-medium text-ink-muted">Coordinates</dt>
+                      <dd class="mt-1 text-sm">
+                        <a class="amc-link inline-flex items-center gap-1" target="_blank" rel="noopener" [href]="'https://www.google.com/maps?q=' + cust.address.latitude + ',' + cust.address.longitude">
+                          {{ cust.address.latitude }}, {{ cust.address.longitude }}
+                          <amc-icon name="external-link" [size]="12" />
+                        </a>
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Sites" [description]="siteRows().length + ' service locations'" icon="map-pin" [padded]="false">
+                <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('sites')">View all</button>
+                @if (siteRows().length === 0 && !sites.isLoading()) {
+                  <div class="p-6 text-center text-sm text-ink-muted">No sites yet.</div>
+                } @else {
+                  <ul class="divide-y divide-line">
+                    @for (site of siteRows().slice(0, 5); track site.id) {
+                      <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted"><amc-icon name="map-pin" /></span>
+                        <div class="min-w-0 flex-1">
+                          <a [routerLink]="['/app/customers/sites', site.id]" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ site.name }}</a>
+                          <p class="truncate text-xs text-ink-muted">{{ site.type }} · {{ site.location.city }} · {{ site.totalAssets }} assets</p>
+                        </div>
+                        <amc-status-badge [label]="site.status" [tone]="siteStatusTone[site.status]" />
+                      </li>
+                    }
+                  </ul>
+                }
+              </amc-panel>
+            </div>
+
+            <div class="space-y-5">
+              <amc-panel title="Primary contact" icon="user">
+                @if (cust.primaryContact; as pc) {
+                  <div class="flex items-center gap-3">
+                    <amc-avatar [name]="pc.firstName + ' ' + pc.lastName" size="md" />
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-ink">{{ pc.firstName }} {{ pc.lastName }}</p>
+                      <p class="truncate text-xs text-ink-muted">{{ pc.designation }}{{ pc.department ? ' · ' + pc.department : '' }}</p>
+                    </div>
+                  </div>
+                  <dl class="mt-4 space-y-3">
+                    <amc-detail-item label="Email" [value]="pc.email" />
+                    <amc-detail-item label="Mobile" [value]="pc.mobile" />
+                    <amc-detail-item label="Phone" [value]="pc.phone" />
+                    <amc-detail-item label="Preferred Communication" [value]="pc.preferredCommunication" />
+                  </dl>
+                } @else {
+                  <p class="text-sm text-ink-muted">No primary contact assigned.</p>
+                }
+                <button type="button" class="amc-btn-secondary amc-btn-sm mt-4 w-full" (click)="selectTab('contacts')">
+                  All contacts ({{ cust.totalContacts }})
+                </button>
+              </amc-panel>
+
+              <amc-panel title="Commercial" icon="briefcase">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-4">
+                  <amc-detail-item label="Account Manager" [value]="cust.accountManagerName" />
+                  <amc-detail-item label="Sales Representative" [value]="lookups.name('users', cust.commercial.salesRepId)" />
+                  <amc-detail-item label="Payment Terms" [value]="lookups.name('paymentTerms', cust.commercial.paymentTermsId)" />
+                  <amc-detail-item label="Currency" [value]="cust.commercial.currency" />
+                  <amc-detail-item label="Credit Limit" [value]="cust.commercial.creditLimit !== null ? formatCurrency(cust.commercial.creditLimit, cust.commercial.currency) : 'No limit'" />
+                  <amc-detail-item label="Billing Cycle" [value]="cust.commercial.billingCycle" />
+                  <amc-detail-item label="Tax Profile" [value]="lookups.name('taxProfiles', cust.commercial.taxProfileId)" />
+                  <amc-detail-item label="Price List" [value]="lookups.name('priceLists', cust.commercial.priceListId)" />
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Operational" icon="sliders">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-4">
+                  <div>
+                    <dt class="text-xs font-medium text-ink-muted">Service Priority</dt>
+                    <dd class="mt-1"><amc-status-badge [label]="cust.operational.servicePriority" [tone]="priorityTone[cust.operational.servicePriority]" /></dd>
+                  </div>
+                  <amc-detail-item label="Default SLA" [value]="lookups.name('slas', cust.operational.defaultSlaId)" />
+                  <amc-detail-item label="Service Region" [value]="cust.operational.serviceRegion" />
+                  <amc-detail-item label="Service Territory" [value]="lookups.name('territories', cust.operational.serviceTerritoryId)" />
+                  <amc-detail-item class="col-span-2" label="Preferred Service Window" [value]="cust.operational.preferredServiceWindow" />
+                  <amc-detail-item label="Customer Portal" [value]="cust.operational.portalAccess ? 'Enabled' : 'Disabled'" />
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Recent activity" icon="activity" [padded]="false">
+                <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('activity')">View all</button>
+                @if (!recentActivity.hasValue()) {
+                  <div class="space-y-3 p-4">
+                    @for (i of [1, 2, 3]; track i) {
+                      <amc-skeleton class="h-4 w-full" />
+                    }
+                  </div>
+                } @else {
+                  <ul class="divide-y divide-line">
+                    @for (entry of activityPreview(); track entry.id) {
+                      <li class="px-4 py-2.5 sm:px-5">
+                        <p class="text-sm text-ink">
+                          <span class="font-medium">{{ entry.action }}</span>
+                          @if (entry.field) {
+                            <span class="text-ink-muted"> · {{ entry.previousValue }} → {{ entry.newValue }}</span>
+                          }
+                        </p>
+                        <p class="truncate text-xs text-ink-muted">{{ entry.userName }} · {{ formatDateTime(entry.timestamp) }}</p>
+                      </li>
+                    } @empty {
+                      <li class="p-5 text-center text-sm text-ink-muted">No activity recorded yet.</li>
+                    }
+                  </ul>
+                }
+              </amc-panel>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('contacts') {
+        <amc-contact-manager
+          [customerId]="cust.id"
+          [addDisabled]="cust.status === 'Archived'"
+          [openAddOnInit]="pendingAction() === 'add-contact'"
+          (changed)="customer.reload()"
+        />
+      }
+      @case ('sites') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <h2 class="text-sm font-semibold text-ink">Sites</h2>
+            <a
+              [routerLink]="['/app/customers/sites/new']"
+              [queryParams]="{ customerId: cust.id }"
+              class="amc-btn-primary amc-btn-sm"
+              [class.pointer-events-none]="blocked()"
+              [class.opacity-50]="blocked()"
+            >
+              <amc-icon name="plus" [size]="14" />
+              Add Site
+            </a>
+          </div>
+          <amc-data-table
+            [rows]="siteRows()"
+            [columns]="siteCols"
+            [trackBy]="trackById"
+            [loading]="sites.isLoading()"
+            [error]="sites.error() ? 'Sites could not be loaded.' : null"
+            emptyIcon="map-pin"
+            emptyTitle="No sites yet"
+            emptyMessage="Add the customer's service locations to manage assets and service per site."
+            (retry)="sites.reload()"
+          />
+        </section>
+      }
+      @case ('assets') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Assets', action: 'Add Asset' }" />
+          <amc-data-table [rows]="r()?.assets ?? []" [columns]="assetCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Assets could not be loaded.' : null" emptyIcon="box" emptyTitle="No assets" emptyMessage="Installed equipment registered for this customer will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('contracts') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Contracts', action: 'Create Contract' }" />
+          <amc-data-table [rows]="r()?.contracts ?? []" [columns]="contractCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Contracts could not be loaded.' : null" emptyIcon="file-check" emptyTitle="No contracts" emptyMessage="Contracts created for this customer will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('amcs') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'AMCs', action: 'Create AMC' }" />
+          <amc-data-table [rows]="r()?.amcs ?? []" [columns]="contractCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'AMCs could not be loaded.' : null" emptyIcon="shield-check" emptyTitle="No AMCs" emptyMessage="Annual maintenance contracts for this customer will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('service-requests') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Service Requests', action: 'Create Service Request' }" />
+          <amc-data-table [rows]="r()?.serviceRequests ?? []" [columns]="requestCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Service requests could not be loaded.' : null" emptyIcon="ticket" emptyTitle="No service requests" emptyMessage="Service requests raised for this customer will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('work-orders') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Work Orders', action: null }" />
+          <amc-data-table [rows]="r()?.workOrders ?? []" [columns]="workOrderCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Work orders could not be loaded.' : null" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Work orders for this customer's sites will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('service-history') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Service History', action: null }" />
+          <amc-data-table [rows]="r()?.serviceHistory ?? []" [columns]="historyCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Service history could not be loaded.' : null" emptyIcon="clipboard-list" emptyTitle="No service history" emptyMessage="Completed field visits will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('invoices') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Invoices', action: null }" />
+          <amc-data-table [rows]="r()?.invoices ?? []" [columns]="invoiceCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Invoices could not be loaded.' : null" emptyIcon="receipt" emptyTitle="No invoices" emptyMessage="Invoices issued to this customer will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('documents') {
+        <amc-document-manager [customerId]="cust.id" [openUploadOnInit]="pendingAction() === 'upload'" />
+      }
+      @case ('notes') {
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <amc-panel title="Internal notes" description="Visible to internal users only" icon="lock">
+            <label for="notes-internal" class="sr-only">Internal notes</label>
+            <textarea id="notes-internal" class="amc-textarea min-h-48" [value]="internalNotes()" (input)="onNotesInput('internal', $event)" placeholder="Escalation preferences, account context…"></textarea>
+          </amc-panel>
+          <amc-panel title="Customer notes" description="Shared with the customer where applicable" icon="sticky-note">
+            <label for="notes-customer" class="sr-only">Customer notes</label>
+            <textarea id="notes-customer" class="amc-textarea min-h-48" [value]="customerNotes()" (input)="onNotesInput('customer', $event)" placeholder="Site access rules, communication preferences…"></textarea>
+          </amc-panel>
+          <div class="flex justify-end gap-2 lg:col-span-2">
+            <button type="button" class="amc-btn-ghost" [disabled]="!notesDirty()" (click)="internalNotes.set(cust.internalNotes); customerNotes.set(cust.customerNotes)">Discard</button>
+            <button type="button" class="amc-btn-primary" [disabled]="!notesDirty() || savingNotes()" (click)="saveNotes()">
+              @if (savingNotes()) {
+                <amc-spinner [size]="14" />
+              }
+              Save notes
+            </button>
+          </div>
+        </div>
+      }
+      @case ('activity') {
+        <amc-activity-timeline [customerId]="cust.id" />
+      }
+    }
+  </div>
+
+  <ng-template #relatedHeader let-title="title" let-action="action">
+    <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+      <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+      @if (action) {
+        <button type="button" class="amc-btn-secondary amc-btn-sm" [disabled]="blocked()" (click)="onMoreAction(handoffId(action))">
+          <amc-icon name="plus" [size]="14" />
+          {{ action }}
+        </button>
+      }
+    </div>
+  </ng-template>
+}

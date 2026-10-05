@@ -1,0 +1,81 @@
+<div class="space-y-5">
+  <amc-page-header
+    title="Customers"
+    subtitle="All customer organizations with their sites, agreements and open service activity."
+    [breadcrumbs]="[
+      { label: 'Customers & Sites', path: '/app/customers/dashboard' },
+      { label: 'Customers' },
+    ]"
+  >
+    <amc-import-button entity="customers" (imported)="customers.reload()" />
+    <button type="button" class="amc-btn-secondary" [disabled]="!filtered().length" (click)="export()">
+      <amc-icon name="download" />
+      <span class="hidden sm:inline">Export</span>
+    </button>
+    <a routerLink="/app/customers/new" class="amc-btn-primary">
+      <amc-icon name="plus" />
+      Add Customer
+    </a>
+  </amc-page-header>
+
+  <section class="amc-card overflow-hidden">
+    <div class="border-b border-line p-3 sm:p-4">
+      <amc-filter-bar
+        searchPlaceholder="Search code, name, phone, email, VAT or CR…"
+        [(search)]="search"
+        [fields]="filterFields()"
+        [(filters)]="filters"
+      />
+    </div>
+
+    <amc-data-table
+      tableId="customers"
+      [entity]="{ singular: 'customer', plural: 'customers' }"
+      [totalCount]="rows().length"
+      [rows]="filtered()"
+      [columns]="columns"
+      [trackBy]="trackById"
+      [loading]="customers.isLoading()"
+      [error]="customers.error() ? 'Customers could not be loaded.' : null"
+      [actions]="rowActions"
+      [selectable]="true"
+      [bulkActions]="bulkActions"
+      [(selected)]="selected"
+      emptyIcon="building"
+      [emptyTitle]="rows().length ? 'No customers match your filters' : 'No customers yet'"
+      [emptyMessage]="rows().length ? 'Try a different search term or clear the filters.' : 'Create your first customer to start managing sites, contacts and agreements.'"
+      (action)="onAction($event)"
+      (bulkAction)="onBulk($event)"
+      (retry)="customers.reload()"
+    >
+      <ng-container empty>
+        @if (rows().length) {
+          <button type="button" class="amc-btn-secondary" (click)="clearFilters()">Clear filters</button>
+        } @else {
+          <a routerLink="/app/customers/new" class="amc-btn-primary"><amc-icon name="plus" /> Add Customer</a>
+        }
+      </ng-container>
+    </amc-data-table>
+  </section>
+</div>
+
+<amc-dialog
+  title="Assign account manager"
+  [description]="'Assign an account manager to ' + assignIds().length + ' selected customer(s).'"
+  size="sm"
+  [(open)]="assignOpen"
+>
+  <div class="space-y-1.5">
+    <label class="amc-label" for="assign-manager">Account manager <span class="text-danger">*</span></label>
+    <amc-select
+      inputId="assign-manager"
+      placeholder="Select account manager…"
+      [options]="lookups.accountManagerOptions()"
+      [(value)]="assignTo"
+    />
+  </div>
+  <ng-container dialogFooter>
+    <button type="button" class="amc-btn-secondary" (click)="assignOpen.set(false)">Cancel</button>
+    <button type="button" class="amc-btn-primary" [disabled]="!assignTo() || busy()" (click)="assign()">Assign</button>
+  </ng-container>
+</amc-dialog>

@@ -1,12 +1,81 @@
 @theme {
-  --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #f6f7f9;
   --color-surface: #ffffff;
   --color-surface-muted: #f8fafc;
+  --color-surface-sunken: #f1f5f9;
   --color-ink: #0f172a;
   --color-ink-muted: #475569;
-  --color-brand: #0f766e;
-  --color-brand-foreground: #f0fdfa;
+  --color-ink-subtle: #94a3b8;
   --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  /* Brand colours are driven by the user's appearance preferences (--amc-*). */
+  --color-brand: var(--amc-primary, #0f766e);
+  --color-brand-hover: color-mix(in oklab, var(--color-brand) 84%, black);
+  --color-brand-foreground: var(--amc-primary-fg, #ffffff);
+  --color-brand-subtle: color-mix(in oklab, var(--color-brand) 9%, var(--color-surface));
+  --color-brand-ring: color-mix(in oklab, var(--color-brand) 28%, transparent);
+
+  --color-ok: #047857;
+  --color-ok-subtle: #ecfdf5;
+  --color-warn: #b45309;
+  --color-warn-subtle: #fffbeb;
+  --color-danger: #be123c;
+  --color-danger-subtle: #fff1f2;
+  --color-secondary: var(--amc-secondary, #2563eb);
+  --color-info: var(--color-secondary);
+  --color-info-subtle: color-mix(in oklab, var(--color-info) 9%, var(--color-surface));
+  --color-accent: var(--amc-accent, #7c3aed);
+  --color-accent-subtle: color-mix(in oklab, var(--color-accent) 9%, var(--color-surface));
+
+  --color-row-hover: color-mix(in oklab, var(--color-surface-sunken) 60%, var(--color-surface));
+  --color-row-selected: color-mix(in oklab, var(--color-brand) 9%, var(--color-surface));
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.04);
+  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25), 0 4px 8px -4px rgb(15 23 42 / 0.08);
+
+  --animate-fade-in: fade-in 140ms ease-out;
+  --animate-slide-up: slide-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-in-right: slide-in-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-in-left: slide-in-left 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

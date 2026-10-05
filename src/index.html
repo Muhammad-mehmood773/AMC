@@ -5,9 +5,36 @@
     <title>Contract, AMC & Field Service Platform</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <script>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('amc.appearance') || '{}');
+          var t = s.theme || 'system';
+          var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+          var r = document.documentElement;
+          if (dark) r.classList.add('dark');
+          if (s.font) r.dataset.font = s.font;
+          if (s.density) r.dataset.density = s.density;
+          if (s.highContrast) r.dataset.contrast = 'high';
+          var sizes = { compact: 14, small: 15, default: 16, large: 17 };
+          if (s.fontSize && sizes[s.fontSize]) r.style.fontSize = sizes[s.fontSize] + 'px';
+          var hex = /^#[0-9a-f]{6}$/i;
+          if (hex.test(s.primary || '')) r.style.setProperty('--amc-primary', s.primary);
+          if (hex.test(s.secondary || '')) r.style.setProperty('--amc-secondary', s.secondary);
+          if (hex.test(s.accent || '')) r.style.setProperty('--amc-accent', s.accent);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="min-h-screen bg-surface text-ink antialiased">
+  <body class="min-h-screen bg-canvas text-ink antialiased">
     <amc-root></amc-root>
   </body>
 </html>

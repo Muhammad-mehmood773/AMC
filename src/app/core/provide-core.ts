@@ -1,5 +1,11 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
+import {
+  EnvironmentProviders,
+  inject,
+  makeEnvironmentProviders,
+  provideAppInitializer,
+} from '@angular/core';
+import { AppearanceStore } from './appearance/appearance.store';
 import { APP_ENVIRONMENT } from './config/app-environment.token';
 import { environment } from '@env';
 import { APP_LOCALE } from './i18n/locale.token';
@@ -12,5 +18,6 @@ export function provideCore(): EnvironmentProviders {
     provideHttpClient(withInterceptors([authInterceptor, loadingInterceptor, errorInterceptor])),
     { provide: APP_ENVIRONMENT, useValue: environment },
     { provide: APP_LOCALE, useValue: environment.defaultLocale },
+    provideAppInitializer(() => inject(AppearanceStore).initialize()),
   ]);
 }

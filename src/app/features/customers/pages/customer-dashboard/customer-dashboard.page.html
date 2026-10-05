@@ -1,0 +1,355 @@
+<div class="space-y-6">
+  <amc-page-header
+    title="Customer Dashboard"
+    subtitle="Operational overview of customers, sites, agreements, service activity and receivables."
+    [breadcrumbs]="[{ label: 'Customers & Sites' }, { label: 'Dashboard' }]"
+  >
+    <button
+      type="button"
+      class="amc-btn-ghost"
+      [disabled]="dashboard.isLoading()"
+      (click)="dashboard.reload()"
+      aria-label="Refresh dashboard"
+    >
+      <amc-icon name="refresh" [class.animate-spin]="dashboard.isLoading()" />
+      <span class="hidden sm:inline">Refresh</span>
+    </button>
+    <button type="button" class="amc-btn-secondary" [disabled]="!data()" (click)="export()">
+      <amc-icon name="download" />
+      <span class="hidden sm:inline">Export</span>
+    </button>
+    <a routerLink="/app/customers/list" class="amc-btn-secondary hidden md:inline-flex">
+      <amc-icon name="building" />
+      View Customers
+    </a>
+    <a routerLink="/app/customers/sites/new" class="amc-btn-secondary">
+      <amc-icon name="map-pin" />
+      Add Site
+    </a>
+    <a routerLink="/app/customers/new" class="amc-btn-primary">
+      <amc-icon name="plus" />
+      Add Customer
+    </a>
+  </amc-page-header>
+
+  <!-- Filters -->
+  <section class="amc-card p-3" aria-label="Dashboard filters">
+    <amc-filter-bar [showSearch]="false" [fields]="filterFields()" [(filters)]="filters">
+      <span actions class="text-sm text-ink-muted">
+        Period: <span class="font-medium text-ink">{{ periodLabel() }}</span>
+      </span>
+    </amc-filter-bar>
+  </section>
+
+  @if (dashboard.error()) {
+    <div class="amc-card">
+      <amc-error-state
+        message="The dashboard could not be loaded. Please try again."
+        (retry)="dashboard.reload()"
+      />
+    </div>
+  } @else {
+    <!-- KPIs -->
+    @let k = data()?.kpis;
+    @let loading = !k;
+    <section
+      class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      aria-label="Key indicators"
+    >
+      <amc-kpi-card
+        label="Total Customers"
+        icon="building"
+        tone="brand"
+        link="/app/customers/list"
+        [loading]="loading"
+        [value]="k?.totalCustomers ?? 0"
+        [hint]="(k?.newCustomers ?? 0) + ' new · ' + periodLabel().toLowerCase()"
+      />
+      <amc-kpi-card
+        label="Active Customers"
+        icon="check-circle"
+        tone="ok"
+        link="/app/customers/list"
+        [queryParams]="{ status: 'Active' }"
+        [loading]="loading"
+        [value]="k?.activeCustomers ?? 0"
+        [hint]="percent(k?.activeCustomers ?? 0, k?.totalCustomers ?? 0)"
+      />
+      <amc-kpi-card
+        label="Inactive Customers"
+        icon="ban"
+        link="/app/customers/list"
+        [queryParams]="{ status: 'Inactive' }"
+        [loading]="loading"
+        [value]="k?.inactiveCustomers ?? 0"
+        hint="Inactive or archived"
+      />
+      <amc-kpi-card
+        label="New Customers"
+        icon="user-plus"
+        tone="info"
+        link="/app/customers/list"
+        [loading]="loading"
+        [value]="k?.newCustomers ?? 0"
+        [hint]="periodLabel()"
+      />
+      <amc-kpi-card
+        label="With Active Contracts"
+        icon="file-check"
+        tone="ok"
+        link="/app/customers/list"
+        [queryParams]="{ contract: 'Active' }"
+        [loading]="loading"
+        [value]="k?.withActiveContracts ?? 0"
+        [hint]="percent(k?.withActiveContracts ?? 0, k?.totalCustomers ?? 0)"
+      />
+      <amc-kpi-card
+        label="With Expiring Contracts"
+        icon="clock"
+        tone="warn"
+        link="/app/customers/list"
+        [queryParams]="{ contract: 'Expiring' }"
+        [loading]="loading"
+        [value]="k?.withExpiringContracts ?? 0"
+        hint="Ending within 60 days"
+      />
+      <amc-kpi-card
+        label="With Active AMCs"
+        icon="shield-check"
+        tone="accent"
+        link="/app/customers/list"
+        [queryParams]="{ amc: 'Active' }"
+        [loading]="loading"
+        [value]="k?.withActiveAmcs ?? 0"
+        [hint]="percent(k?.withActiveAmcs ?? 0, k?.totalCustomers ?? 0)"
+      />
+      <amc-kpi-card
+        label="With Open Service Requests"
+        icon="ticket"
+        tone="warn"
+        [loading]="loading"
+        [value]="k?.withOpenServiceRequests ?? 0"
+        hint="New, assigned or in progress"
+      />
+      <amc-kpi-card
+        label="With Open Work Orders"
+        icon="wrench"
+        tone="info"
+        [loading]="loading"
+        [value]="k?.withOpenWorkOrders ?? 0"
+        hint="Scheduled or in progress"
+      />
+      <amc-kpi-card
+        label="With Outstanding Invoices"
+        icon="wallet"
+        tone="danger"
+        [loading]="loading"
+        [value]="k?.withOutstandingInvoices ?? 0"
+        [hint]="formatCurrency(k?.outstandingTotal ?? 0, 'SAR', true) + ' outstanding'"
+      />
+    </section>
+
+    <!-- Widgets -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <amc-panel
+        class="lg:col-span-2"
+        title="Expiring Contracts"
+        description="Contracts and AMCs ending within 60 days"
+        icon="clock"
+        [padded]="false"
+      >
+        <a panelActions routerLink="/app/customers/list" [queryParams]="{ contract: 'Expiring' }" class="amc-link text-xs">
+          View customers
+        </a>
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.expiringContracts.length === 0) {
+          <amc-empty-state [compact]="true" icon="check-circle" title="Nothing expiring soon" message="No contracts or AMCs end in the next 60 days." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.expiringContracts; track row.id) {
+              <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <span
+                  class="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-center leading-none"
+                  [class]="row.daysLeft <= 14 ? 'bg-danger-subtle text-danger' : 'bg-warn-subtle text-warn'"
+                >
+                  <span class="text-sm font-semibold tabular-nums">{{ row.daysLeft }}</span>
+                  <span class="text-[10px]">days</span>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-ink">
+                    <span class="font-mono text-[13px] text-ink-muted">{{ row.number }}</span>
+                    <span class="mx-1.5 text-ink-subtle">·</span>
+                    <a [routerLink]="['/app/customers', row.customerId]" [queryParams]="{ tab: row.kind === 'AMC' ? 'amcs' : 'contracts' }" class="hover:text-brand">{{ row.customerName }}</a>
+                  </p>
+                  <p class="text-xs text-ink-muted">{{ row.kind }} · ends {{ formatDate(row.endDate) }}</p>
+                </div>
+                <span class="hidden text-sm font-medium text-ink tabular-nums sm:block">{{ formatCurrency(row.value) }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel title="Outstanding Customer Amounts" description="Top receivables by customer" icon="wallet" [padded]="false">
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.outstanding.length === 0) {
+          <amc-empty-state [compact]="true" icon="check-circle" title="All settled" message="No customers have outstanding invoices." />
+        } @else {
+          <ul class="space-y-4 p-4 sm:p-5">
+            @for (row of data()!.outstanding; track row.customerId) {
+              <li>
+                <div class="flex items-baseline justify-between gap-3">
+                  <a [routerLink]="['/app/customers', row.customerId]" [queryParams]="{ tab: 'invoices' }" class="truncate text-sm font-medium text-ink hover:text-brand">{{ row.customerName }}</a>
+                  <span class="shrink-0 text-sm font-semibold tabular-nums">{{ formatCurrency(row.amount, 'SAR', true) }}</span>
+                </div>
+                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                  <div class="h-full rounded-full" [class]="row.overdue > 0 ? 'bg-danger' : 'bg-brand'" [style.width.%]="barWidth(row.amount)"></div>
+                </div>
+                <p class="mt-1 text-xs text-ink-muted">
+                  {{ row.invoices }} open invoice{{ row.invoices === 1 ? '' : 's' }}
+                  @if (row.overdue > 0) {
+                    · <span class="text-danger">{{ formatCurrency(row.overdue, 'SAR', true) }} overdue</span>
+                  }
+                </p>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel title="Open Service Requests" icon="ticket" [padded]="false">
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.openServiceRequests.length === 0) {
+          <amc-empty-state [compact]="true" icon="check-circle" title="No open requests" message="All service requests are resolved." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.openServiceRequests; track row.id) {
+              <li class="px-4 py-3 sm:px-5">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="min-w-0 truncate text-sm font-medium text-ink">{{ row.subject }}</p>
+                  <amc-status-badge [label]="row.priority" [tone]="recordTone(row.priority)" />
+                </div>
+                <p class="mt-0.5 truncate text-xs text-ink-muted">
+                  <span class="font-mono">{{ row.number }}</span> ·
+                  <a [routerLink]="['/app/customers', row.customerId]" [queryParams]="{ tab: 'service-requests' }" class="hover:text-brand">{{ row.customerName }}</a>
+                  · {{ relativeTime(row.createdAt) }}
+                </p>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel title="Upcoming Maintenance" icon="calendar-check" [padded]="false">
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.upcomingMaintenance.length === 0) {
+          <amc-empty-state [compact]="true" icon="calendar" title="Nothing scheduled" message="No preventive maintenance is due." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.upcomingMaintenance; track row.id) {
+              <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-ink">{{ row.plan }}</p>
+                  <p class="truncate text-xs text-ink-muted">
+                    <a [routerLink]="['/app/customers/sites', row.siteId]" [queryParams]="{ tab: 'maintenance' }" class="hover:text-brand">{{ row.siteName }}</a>
+                  </p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <amc-status-badge [label]="row.status" [tone]="recordTone(row.status)" />
+                  <p class="mt-1 text-xs text-ink-muted tabular-nums">{{ formatDate(row.nextDue) }}</p>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel title="Recent Customers" icon="building" [padded]="false">
+        <a panelActions routerLink="/app/customers/list" class="amc-link text-xs">View all</a>
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.recentCustomers.length === 0) {
+          <amc-empty-state [compact]="true" icon="building" title="No new customers" [message]="'No customers were added in the selected period (' + periodLabel().toLowerCase() + ').'" />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.recentCustomers; track row.id) {
+              <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="min-w-0 flex-1">
+                  <a [routerLink]="['/app/customers', row.id]" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ row.name }}</a>
+                  <p class="text-xs text-ink-muted"><span class="font-mono">{{ row.code }}</span> · {{ row.type }} · {{ relativeTime(row.createdAt) }}</p>
+                </div>
+                <amc-status-badge [label]="row.status" [tone]="statusTone[row.status]" />
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel title="Recently Added Sites" icon="map-pin" [padded]="false">
+        <a panelActions routerLink="/app/customers/sites" class="amc-link text-xs">View all</a>
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.recentSites.length === 0) {
+          <amc-empty-state [compact]="true" icon="map-pin" title="No new sites" message="No sites were added in the selected period." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.recentSites; track row.id) {
+              <li class="px-4 py-3 sm:px-5">
+                <a [routerLink]="['/app/customers/sites', row.id]" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ row.name }}</a>
+                <p class="truncate text-xs text-ink-muted">{{ row.customerName }} · {{ row.city }} · {{ relativeTime(row.createdAt) }}</p>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+
+      <amc-panel class="lg:col-span-2" title="Recent Service Activity" description="Latest completed field visits" icon="activity" [padded]="false">
+        <a panelActions routerLink="/app/customers/history" class="amc-link text-xs">Open history</a>
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (data()!.recentActivity.length === 0) {
+          <amc-empty-state [compact]="true" icon="activity" title="No recent activity" message="Service visits will appear here." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of data()!.recentActivity; track row.id) {
+              <li class="flex gap-3 px-4 py-3 sm:px-5">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted">
+                  <amc-icon name="wrench" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p class="text-sm font-medium text-ink">{{ row.visitType }}</p>
+                    <amc-status-badge [label]="row.outcome" [tone]="recordTone(row.outcome)" />
+                  </div>
+                  <p class="mt-0.5 text-sm text-ink-muted">{{ row.summary }}</p>
+                  <p class="mt-1 text-xs text-ink-subtle">
+                    <a [routerLink]="['/app/customers', row.customerId]" class="hover:text-brand">{{ row.customerName }}</a>
+                    · {{ row.siteName }} · {{ row.technician }} · {{ relativeTime(row.date) }}
+                  </p>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+    </div>
+  }
+</div>
+
+<ng-template #listSkeleton>
+  <div class="space-y-4 p-4 sm:p-5" aria-busy="true">
+    @for (i of skeletons; track i) {
+      <div class="flex items-center gap-3">
+        <amc-skeleton class="h-9 w-9 rounded-lg" />
+        <div class="flex-1 space-y-2">
+          <amc-skeleton class="h-3.5 w-2/3" />
+          <amc-skeleton class="h-3 w-1/3" />
+        </div>
+      </div>
+    }
+  </div>
+</ng-template>

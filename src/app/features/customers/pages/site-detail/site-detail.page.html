@@ -1,0 +1,294 @@
+@if (siteRes.error()) {
+  <div class="amc-card">
+    <amc-error-state title="Site not found" message="This site could not be loaded. It may not exist or the link is incorrect." (retry)="siteRes.reload()" />
+    <div class="-mt-6 pb-8 text-center">
+      <a routerLink="/app/customers/sites" class="amc-link text-sm">Back to sites</a>
+    </div>
+  </div>
+} @else if (!s()) {
+  <div class="space-y-5" aria-busy="true">
+    <div class="amc-card space-y-3 p-5">
+      <amc-skeleton class="h-6 w-72" />
+      <amc-skeleton class="h-4 w-48" />
+    </div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <amc-skeleton class="h-24 rounded-xl" />
+      }
+    </div>
+  </div>
+} @else {
+  @let site = s()!;
+  <div class="space-y-5">
+    <amc-breadcrumbs
+      [items]="[
+        { label: 'Customers & Sites', path: '/app/customers/dashboard' },
+        { label: 'Sites', path: '/app/customers/sites' },
+        { label: site.name },
+      ]"
+    />
+
+    <!-- Site header -->
+    <header class="amc-card p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-brand">
+            <amc-icon name="map-pin" [size]="24" />
+          </span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ site.name }}</h1>
+              <amc-status-badge [label]="site.status" [tone]="statusTone[site.status]" />
+            </div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+              <span class="font-mono text-[13px]">{{ site.code }}</span>
+              <span class="text-ink-subtle">·</span>
+              <span>{{ site.type }}</span>
+            </p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Customer</dt>
+                <amc-icon name="building" class="text-ink-subtle" />
+                <dd><a [routerLink]="['/app/customers', site.customerId]" class="font-medium text-ink hover:text-brand">{{ site.customerName }}</a></dd>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Location</dt>
+                <amc-icon name="globe" class="text-ink-subtle" />
+                <dd class="text-ink">{{ site.location.city }}, {{ site.location.region }}</dd>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Site manager</dt>
+                <amc-icon name="user" class="text-ink-subtle" />
+                <dd class="text-ink">{{ site.siteManagerName ?? 'No site manager' }}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          <button type="button" class="amc-btn-icon" aria-label="Refresh" title="Refresh" (click)="refresh()">
+            <amc-icon name="refresh" [class.animate-spin]="siteRes.isLoading()" />
+          </button>
+          <a [routerLink]="['/app/customers/sites', site.id, 'edit']" class="amc-btn-primary">
+            <amc-icon name="pencil" />
+            Edit Site
+          </a>
+          <amc-action-menu label="Actions" [items]="moreActions()" (action)="onAction($event)" />
+        </div>
+      </div>
+    </header>
+
+    @if (blocked()) {
+      <div class="flex items-center gap-3 rounded-xl border border-line-strong bg-surface-sunken p-4" role="status">
+        <amc-icon name="lock" [size]="18" class="text-ink-muted" />
+        <p class="text-sm text-ink-muted">
+          New service requests, work orders and assets are restricted because the
+          {{ site.status === 'Inactive' || site.status === 'Archived' ? 'site' : 'customer' }} is inactive.
+        </p>
+      </div>
+    } @else if (site.status === 'Temporarily Closed' || site.status === 'Planned') {
+      <div class="flex items-center gap-3 rounded-xl border border-info/30 bg-info-subtle p-4" role="status">
+        <amc-icon name="info" [size]="18" class="text-info" />
+        <p class="text-sm text-ink-muted">This site is <span class="font-medium text-ink">{{ site.status.toLowerCase() }}</span>. Confirm access before scheduling visits.</p>
+      </div>
+    }
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="space-y-5">
+          <section class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7" aria-label="Site indicators">
+            <amc-kpi-card label="Total Assets" icon="box" tone="accent" [value]="site.totalAssets" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('assets')" />
+            <amc-kpi-card label="Active Contracts" icon="file-check" tone="ok" [value]="site.activeContracts" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('contracts')" />
+            <amc-kpi-card label="Active AMCs" icon="shield-check" tone="ok" [value]="site.activeAmcs" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('amcs')" />
+            <amc-kpi-card label="Open Service Requests" icon="ticket" tone="warn" [value]="site.openServiceRequests" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('service-requests')" />
+            <amc-kpi-card label="Open Work Orders" icon="wrench" tone="info" [value]="site.openWorkOrders" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('work-orders')" />
+            <amc-kpi-card label="Upcoming Maintenance" icon="calendar-check" tone="brand" [value]="site.upcomingMaintenance" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('maintenance')" />
+            <amc-kpi-card label="Completed Visits" icon="check-circle" tone="ok" [value]="site.completedVisits" [link]="'/app/customers/sites/' + site.id" [queryParams]="tabLink('service-history')" />
+          </section>
+
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div class="space-y-5 xl:col-span-2">
+              <amc-panel title="Location" icon="globe">
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+                  <amc-detail-item class="col-span-2 lg:col-span-4" label="Full Address" [value]="site.location.addressLine" />
+                  <amc-detail-item label="Country" [value]="site.location.country" />
+                  <amc-detail-item label="Region" [value]="site.location.region" />
+                  <amc-detail-item label="City" [value]="site.location.city" />
+                  <amc-detail-item label="District" [value]="site.location.district" />
+                  <amc-detail-item label="Street" [value]="site.location.street" />
+                  <amc-detail-item label="Building No." [value]="site.location.buildingNumber" />
+                  <amc-detail-item label="Postal Code" [value]="site.location.postalCode" />
+                  <amc-detail-item label="Additional No." [value]="site.location.additionalNumber" />
+                  @if (site.location.latitude !== null && site.location.longitude !== null) {
+                    <div class="col-span-2">
+                      <dt class="text-xs font-medium text-ink-muted">Coordinates</dt>
+                      <dd class="mt-1 text-sm">
+                        <a class="amc-link inline-flex items-center gap-1" target="_blank" rel="noopener" [href]="'https://www.google.com/maps?q=' + site.location.latitude + ',' + site.location.longitude">
+                          {{ site.location.latitude }}, {{ site.location.longitude }}
+                          <amc-icon name="external-link" [size]="12" />
+                        </a>
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Site operations" icon="clock">
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                  <amc-detail-item label="Site Contact" [value]="site.primaryContactName" />
+                  <amc-detail-item label="Site Manager" [value]="site.siteManagerName" />
+                  <amc-detail-item label="Emergency Contact" [value]="site.emergencyContactName" />
+                  <amc-detail-item label="Operating Hours" [value]="site.operatingHours" />
+                  <amc-detail-item label="Service Hours" [value]="site.serviceHours" />
+                  <div></div>
+                  <amc-detail-item class="sm:col-span-3" label="Access Requirements" [value]="site.accessRequirements" />
+                  <amc-detail-item class="sm:col-span-3" label="Security Requirements" [value]="site.securityRequirements" />
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Instructions & notes" icon="sticky-note">
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-3">
+                  <amc-detail-item label="Site Instructions" [value]="site.siteInstructions" />
+                  <amc-detail-item label="Technician Instructions" [value]="site.technicianInstructions" />
+                  <amc-detail-item label="Internal Notes" [value]="site.internalNotes" />
+                </dl>
+              </amc-panel>
+            </div>
+
+            <div class="space-y-5">
+              <amc-panel title="Service information" icon="sliders">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-4">
+                  <div>
+                    <dt class="text-xs font-medium text-ink-muted">Service Priority</dt>
+                    <dd class="mt-1"><amc-status-badge [label]="site.servicePriority" [tone]="priorityTone[site.servicePriority]" /></dd>
+                  </div>
+                  <amc-detail-item label="Default SLA" [value]="lookups.name('slas', site.defaultSlaId)" />
+                  <amc-detail-item label="Service Territory" [value]="lookups.name('territories', site.serviceTerritoryId)" />
+                  <amc-detail-item label="Access Notice" [value]="site.accessNoticeRequired ? 'Required' : 'Not required'" />
+                  <amc-detail-item class="col-span-2" label="Preferred Visit Time" [value]="site.preferredVisitTime" />
+                  <div class="col-span-2">
+                    <dt class="text-xs font-medium text-ink-muted">Preferred Visit Days</dt>
+                    <dd class="mt-1.5 flex flex-wrap gap-1">
+                      @for (day of ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; track day) {
+                        <span
+                          class="inline-flex h-7 w-10 items-center justify-center rounded-md text-xs font-medium"
+                          [class]="isVisitDay(day) ? 'bg-brand-subtle text-brand' : 'bg-surface-sunken text-ink-subtle'"
+                          >{{ day }}</span
+                        >
+                      }
+                    </dd>
+                  </div>
+                </dl>
+              </amc-panel>
+
+              <amc-panel title="Upcoming maintenance" icon="calendar-check" [padded]="false">
+                <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('maintenance')">View all</button>
+                @if (!r()) {
+                  <div class="space-y-3 p-4">
+                    @for (i of [1, 2, 3]; track i) {
+                      <amc-skeleton class="h-4 w-full" />
+                    }
+                  </div>
+                } @else {
+                  <ul class="divide-y divide-line">
+                    @for (m of r()!.maintenance.slice(0, 4); track m.id) {
+                      <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                        <div class="min-w-0 flex-1">
+                          <p class="truncate text-sm font-medium text-ink">{{ m.plan }}</p>
+                          <p class="truncate text-xs text-ink-muted">{{ m.assetName }}</p>
+                        </div>
+                        <div class="shrink-0 text-right">
+                          <amc-status-badge [label]="m.status" [tone]="recordTone(m.status)" />
+                          <p class="mt-1 text-xs text-ink-muted tabular-nums">{{ formatDate(m.nextDue) }}</p>
+                        </div>
+                      </li>
+                    } @empty {
+                      <li class="p-5 text-center text-sm text-ink-muted">No maintenance scheduled.</li>
+                    }
+                  </ul>
+                }
+              </amc-panel>
+
+              <amc-panel title="Record" icon="info">
+                <dl class="space-y-3">
+                  <amc-detail-item label="Created" [value]="formatDateTime(site.createdAt) + ' · ' + site.createdBy" />
+                  <amc-detail-item label="Last Updated" [value]="site.updatedAt ? formatDateTime(site.updatedAt) + ' · ' + site.updatedBy : null" />
+                </dl>
+              </amc-panel>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('contacts') {
+        <amc-contact-manager
+          [customerId]="site.customerId"
+          [siteId]="site.id"
+          [addDisabled]="site.customerStatus === 'Archived'"
+          [openAddOnInit]="pendingAction() === 'add-contact'"
+          (changed)="refresh()"
+        />
+      }
+      @case ('assets') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Assets', action: 'add-asset', label: 'Add Asset' }" />
+          <amc-data-table [rows]="r()?.assets ?? []" [columns]="assetCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Assets could not be loaded.' : null" emptyIcon="box" emptyTitle="No assets" emptyMessage="Equipment installed at this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('contracts') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Contracts', action: null }" />
+          <amc-data-table [rows]="r()?.contracts ?? []" [columns]="contractCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Contracts could not be loaded.' : null" emptyIcon="file-check" emptyTitle="No contracts" emptyMessage="Contracts covering this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('amcs') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'AMCs', action: null }" />
+          <amc-data-table [rows]="r()?.amcs ?? []" [columns]="contractCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'AMCs could not be loaded.' : null" emptyIcon="shield-check" emptyTitle="No AMCs" emptyMessage="Annual maintenance contracts covering this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('service-requests') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Service Requests', action: 'create-request', label: 'Create Service Request' }" />
+          <amc-data-table [rows]="r()?.serviceRequests ?? []" [columns]="requestCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Service requests could not be loaded.' : null" emptyIcon="ticket" emptyTitle="No service requests" emptyMessage="Requests raised for this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('work-orders') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Work Orders', action: 'create-work-order', label: 'Create Work Order' }" />
+          <amc-data-table [rows]="r()?.workOrders ?? []" [columns]="workOrderCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Work orders could not be loaded.' : null" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Work orders at this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('maintenance') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Preventive Maintenance', action: null }" />
+          <amc-data-table [rows]="r()?.maintenance ?? []" [columns]="maintenanceCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Maintenance could not be loaded.' : null" emptyIcon="calendar-check" emptyTitle="No maintenance scheduled" emptyMessage="Preventive maintenance plans for this site's assets will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('service-history') {
+        <section class="amc-card overflow-hidden">
+          <ng-container *ngTemplateOutlet="relatedHeader; context: { title: 'Service History', action: null }" />
+          <amc-data-table [rows]="r()?.serviceHistory ?? []" [columns]="historyCols" [trackBy]="trackById" [loading]="related.isLoading()" [error]="related.error() ? 'Service history could not be loaded.' : null" emptyIcon="clipboard-list" emptyTitle="No service history" emptyMessage="Completed visits at this site will appear here." (retry)="related.reload()" />
+        </section>
+      }
+      @case ('documents') {
+        <amc-document-manager [customerId]="site.customerId" [siteId]="site.id" [openUploadOnInit]="pendingAction() === 'upload'" />
+      }
+      @case ('activity') {
+        <amc-activity-timeline [siteId]="site.id" />
+      }
+    }
+  </div>
+
+  <ng-template #relatedHeader let-title="title" let-action="action" let-label="label">
+    <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+      <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+      @if (action) {
+        <button type="button" class="amc-btn-secondary amc-btn-sm" [disabled]="blocked()" (click)="onAction(action)">
+          <amc-icon name="plus" [size]="14" />
+          {{ label }}
+        </button>
+      }
+    </div>
+  </ng-template>
+}

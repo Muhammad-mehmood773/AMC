@@ -1,33 +1,39 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Icon, type IconName } from './icon';
 
 @Component({
   selector: 'amc-empty-state',
+  imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="amc-card flex flex-col items-center px-6 py-12 text-center">
-      <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-subtle text-brand">
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.5"
-            d="M3 7h18M5 7v12a2 2 0 002 2h10a2 2 0 002-2V7"
-          />
-        </svg>
+    <div
+      class="flex flex-col items-center text-center"
+      [class]="compact() ? 'px-4 py-8' : 'px-6 py-14'"
+    >
+      <div
+        class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface-muted text-ink-muted shadow-xs"
+      >
+        <amc-icon [name]="icon()" [size]="20" />
       </div>
-      <h2 class="text-base font-semibold">{{ title() }}</h2>
-      <p class="mt-1 max-w-md text-sm text-ink-muted">{{ message() }}</p>
-      @if (actionLabel()) {
-        <button type="button" class="amc-btn-primary mt-4" (click)="action.emit()">
-          {{ actionLabel() }}
-        </button>
-      }
+      <h3 class="text-sm font-semibold text-ink">{{ title() }}</h3>
+      <p class="mt-1 max-w-sm text-sm text-ink-muted">{{ message() }}</p>
+      <div class="mt-4 flex flex-wrap justify-center gap-2 empty:hidden">
+        @if (actionLabel()) {
+          <button type="button" class="amc-btn-primary" (click)="action.emit()">
+            <amc-icon name="plus" />
+            {{ actionLabel() }}
+          </button>
+        }
+        <ng-content />
+      </div>
     </div>
   `,
 })
 export class EmptyState {
   readonly title = input.required<string>();
   readonly message = input.required<string>();
+  readonly icon = input<IconName>('inbox');
   readonly actionLabel = input<string>('');
+  readonly compact = input(false);
   readonly action = output<void>();
 }
