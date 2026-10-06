@@ -12,6 +12,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
+import { BulkOperationService } from '@core/ui/bulk-operation.service';
 import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
 import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
@@ -185,6 +186,7 @@ export class ContactManager {
   private readonly notify = inject(NotificationPort);
   private readonly confirm = inject(ConfirmDialogService);
   private readonly lookupValues = inject(LookupValuesStore);
+  private readonly bulk = inject(BulkOperationService);
 
   readonly customerId = input<string | null>(null);
   readonly siteId = input<string | null>(null);
@@ -315,14 +317,14 @@ export class ContactManager {
       });
       if (!ok) return;
     }
-    try {
-      for (const contact of rows) await firstValueFrom(this.api.setStatus(contact.id, status));
-      this.notify.success(`${rows.length} contact${rows.length === 1 ? '' : 's'} ${status === 'Active' ? 'activated' : 'deactivated'}.`);
-      this.contacts.reload();
-      this.changed.emit();
-    } catch (error) {
-      this.notify.error((error as Error).message);
-    }
+    await this.bulk.run(
+      `${status === 'Active' ? 'Activating' : 'Deactivating'} ${rows.length} contact${rows.length === 1 ? '' : 's'}`,
+      rows,
+      (contact) => firstValueFrom(this.api.setStatus(contact.id, status)),
+      (contact) => contact.fullName,
+    );
+    this.contacts.reload();
+    this.changed.emit();
   }
 
   protected add(): void {

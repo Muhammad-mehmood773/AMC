@@ -13,7 +13,7 @@ import { Icon } from './icon';
     <button
       type="button"
       role="switch"
-      class="group flex w-full items-start gap-3 rounded-lg text-left disabled:cursor-not-allowed disabled:opacity-50"
+     class="group flex w-full cursor-pointer items-start gap-3 rounded-lg text-left disabled:cursor-not-allowed disabled:opacity-50"
       [attr.id]="inputId() || null"
       [attr.aria-checked]="checked()"
       [disabled]="disabled()"
@@ -84,11 +84,11 @@ export class Switch implements ControlValueAccessor {
   ],
   host: { class: 'block' },
   template: `
-    <div class="flex flex-wrap gap-2" role="group" [attr.aria-label]="ariaLabel()">
+    <div class=" flex flex-wrap gap-2" role="group" [attr.aria-label]="ariaLabel()">
       @for (option of options(); track option.value) {
         <button
           type="button"
-          class="inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          class=" inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           [class]="
             isSelected(option.value)
               ? 'border-brand bg-brand-subtle text-brand'

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { AUTH_ROUTES } from '../auth/auth.routes';
 import { CUSTOMERS_ROUTES } from './customers.routes';
 
 /** Waits for simulated API latency and re-renders. */
@@ -18,7 +19,14 @@ describe('Customer & Site Management routes', { timeout: 20_000 }, () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([{ path: 'app/customers', children: CUSTOMERS_ROUTES }], withComponentInputBinding()),
+        provideRouter(
+          [
+            { path: 'app/customers', children: CUSTOMERS_ROUTES },
+            { path: 'auth', children: AUTH_ROUTES },
+            { path: 'error/:code', loadComponent: () => import('../errors/error-page').then((m) => m.ErrorPage) },
+          ],
+          withComponentInputBinding(),
+        ),
       ],
     });
     harness = await RouterTestingHarness.create();
@@ -55,6 +63,23 @@ describe('Customer & Site Management routes', { timeout: 20_000 }, () => {
       }
     });
   }
+
+  it('renders auth and error pages', async () => {
+    const h = harness;
+    for (const [url, text] of [
+      ['/auth/login', 'Demo account'],
+      ['/auth/forgot-password', 'Send reset link'],
+      ['/auth/reset-password', 'At least 8 characters'],
+      ['/auth/session-expired', 'Your session has expired'],
+      ['/auth/account-locked', 'Account locked'],
+      ['/error/403', 'Access denied'],
+      ['/error/503', 'Service unavailable'],
+    ]) {
+      await h.navigateByUrl(url);
+      await settle(h);
+      expect((h.routeNativeElement?.textContent ?? '').replace(/\s+/g, ' ')).toContain(text);
+    }
+  });
 
   it('shows a not-found state for unknown customers', async () => {
     await harness.navigateByUrl('/app/customers/CUS-99999');

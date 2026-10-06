@@ -62,6 +62,8 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: '',
+    title: 'Page not found',
+    data: { code: '404' },
+    loadComponent: () => import('./features/errors/error-page').then((m) => m.ErrorPage),
   },
 ];

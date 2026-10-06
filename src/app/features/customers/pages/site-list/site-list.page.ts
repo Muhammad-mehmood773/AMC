@@ -10,6 +10,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
+import { BulkOperationService } from '@core/ui/bulk-operation.service';
 import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
 import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
@@ -96,6 +97,7 @@ export class SiteListPage {
   private readonly confirm = inject(ConfirmDialogService);
   private readonly notify = inject(NotificationPort);
   private readonly handoff = inject(ModuleHandoff);
+  private readonly bulk = inject(BulkOperationService);
   private readonly lookupValues = inject(LookupValuesStore);
 
   readonly customerId = input<string>();
@@ -190,13 +192,13 @@ export class SiteListPage {
       });
       if (!ok) return;
     }
-    try {
-      for (const site of rows) await firstValueFrom(this.api.setStatus(site.id, status));
-      this.notify.success(`${rows.length} site${rows.length === 1 ? '' : 's'} ${status === 'Active' ? 'activated' : 'deactivated'}.`);
-      this.sites.reload();
-    } catch (error) {
-      this.notify.error((error as Error).message);
-    }
+    await this.bulk.run(
+      `${status === 'Active' ? 'Activating' : 'Deactivating'} ${rows.length} site${rows.length === 1 ? '' : 's'}`,
+      rows,
+      (site) => firstValueFrom(this.api.setStatus(site.id, status)),
+      (site) => site.name,
+    );
+    this.sites.reload();
   }
 
   protected async onAction({ id, row }: RowAction<SiteListItem>): Promise<void> {

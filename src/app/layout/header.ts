@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppearanceStore } from '@core/appearance/appearance.store';
+import { AuthService } from '@core/auth/auth.service';
 import { SessionStore } from '@core/auth/session.store';
 import { Avatar } from '@shared/ui/avatar';
 import { Icon } from '@shared/ui/icon';
@@ -87,6 +88,9 @@ import { Icon } from '@shared/ui/icon';
           <amc-icon name="palette" [size]="18" />
         </button>
         <div class="mx-2 hidden h-6 w-px bg-line sm:block"></div>
+        <button type="button" class="amc-btn-icon" aria-label="Sign out" title="Sign out" (click)="signOut()">
+          <amc-icon name="log-out" [size]="18" />
+        </button>
         <div class="flex items-center gap-2.5 rounded-lg py-1 pl-1">
           <amc-avatar [name]="userName()" size="sm" />
           <div class="hidden leading-tight md:block">
@@ -105,12 +109,18 @@ export class Header {
   private readonly router = inject(Router);
   private readonly appearance = inject(AppearanceStore);
   private readonly session = inject(SessionStore);
+  private readonly auth = inject(AuthService);
   private readonly searchInput = viewChild.required<ElementRef<HTMLInputElement>>('searchInput');
 
   protected readonly searchOpen = signal(false);
   protected readonly isDark = this.appearance.resolvedDark;
   protected readonly userName = computed(() => this.session.session().user?.displayName ?? 'Demo User');
   protected readonly userRole = computed(() => this.session.tenant()?.name ?? 'Service Operations');
+
+  protected signOut(): void {
+    this.auth.logout();
+    void this.router.navigate(['/auth/login']);
+  }
 
   protected toggleTheme(): void {
     this.appearance.setTheme(this.isDark() ? 'light' : 'dark');
