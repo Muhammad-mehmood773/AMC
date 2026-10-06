@@ -21,3 +21,9 @@
 - Feature modules: `src/app/features/<feature>/` with `models/`, `data/` (abstract API contracts +
   `mock/` implementations bound in a `provide…Data()` function at route level), `components/`, `pages/`.
 - Downstream-module actions (create contract, work order, asset…) go through `ModuleHandoff`.
+- User-maintainable lists use the generic lookup mechanism (`src/app/shared/lookups`): register the
+  type in the feature's `LOOKUP_TYPES` registry (`editable: true` enables inline Add/Edit) and bind
+  the field with `<amc-lookup-select [type]="…">`. Fixed/system lists (statuses, priorities,
+  access levels, master data owned by other modules) stay plain `<amc-select>`.
+- Contextual help: pass `[help]` to `<amc-form-field>`; content lives in the feature's
+  `data/field-help.ts`. Only add help where it explains a purpose or business rule.

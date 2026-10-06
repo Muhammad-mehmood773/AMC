@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import { RANGE_PRESETS, rangeLabel } from '@shared/ui/date-picker';
 import { EmptyState } from '@shared/ui/empty-state';
@@ -18,7 +19,8 @@ import { type FilterField, type FilterValues, filterList, filterRange } from '@s
 import { formatCurrency, formatDate, relativeTime } from '@shared/utils/format';
 import { CustomerApi } from '../../data/customer-site.api';
 import { CustomerLookupsStore } from '../../data/lookups.store';
-import { CUSTOMER_CATEGORIES, CUSTOMER_STATUSES, CUSTOMER_TYPES } from '../../models/customer.model';
+import { LOOKUP } from '../../data/customer-site.lookups';
+import { CUSTOMER_STATUSES } from '../../models/customer.model';
 import type { DashboardFilters } from '../../models/dashboard.model';
 import { CUSTOMER_STATUS_TONE, recordTone } from '../../models/display';
 
@@ -45,6 +47,7 @@ const DEFAULT_RANGE = RANGE_PRESETS.find((p) => p.label === 'Last 90 days')!.ran
 export class CustomerDashboardPage {
   private readonly api = inject(CustomerApi);
   protected readonly lookups = inject(CustomerLookupsStore);
+  private readonly lookupValues = inject(LookupValuesStore);
 
   protected readonly filters = signal<FilterValues>({ range: DEFAULT_RANGE });
 
@@ -58,9 +61,9 @@ export class CustomerDashboardPage {
       { key: 'range', label: 'Date Range', type: 'date-range', placeholder: 'All time' },
       { key: 'company', label: 'Company', type: 'multiselect', options: this.lookups.companyOptions() },
       { key: 'branch', label: 'Branch', type: 'multiselect', options: branches },
-      { key: 'type', label: 'Customer Type', type: 'multiselect', options: toOptions(CUSTOMER_TYPES) },
+      { key: 'type', label: 'Customer Type', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerType)() },
       { key: 'status', label: 'Customer Status', type: 'multiselect', options: toOptions(CUSTOMER_STATUSES) },
-      { key: 'category', label: 'Customer Category', type: 'multiselect', options: toOptions(CUSTOMER_CATEGORIES) },
+      { key: 'category', label: 'Customer Category', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerCategory)() },
       { key: 'manager', label: 'Account Manager', type: 'multiselect', options: this.lookups.accountManagerOptions() },
     ];
   });

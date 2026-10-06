@@ -1,6 +1,7 @@
 import type { Auditable, Identifiable } from '@shared/models/entity';
 import type { Contact, ContactInput } from './contact.model';
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const CUSTOMER_TYPES = [
   'Corporate',
   'Government',
@@ -9,8 +10,9 @@ export const CUSTOMER_TYPES = [
   'Partner',
   'Other',
 ] as const;
-export type CustomerType = (typeof CUSTOMER_TYPES)[number];
+export type CustomerType = string;
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const CUSTOMER_CATEGORIES = [
   'Enterprise',
   'Commercial',
@@ -21,7 +23,7 @@ export const CUSTOMER_CATEGORIES = [
   'Hospitality',
   'Education',
 ] as const;
-export type CustomerCategory = (typeof CUSTOMER_CATEGORIES)[number];
+export type CustomerCategory = string;
 
 export const CUSTOMER_STATUSES = ['Active', 'On Hold', 'Inactive', 'Archived'] as const;
 export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];
@@ -29,8 +31,24 @@ export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];
 export const SERVICE_PRIORITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
 export type ServicePriority = (typeof SERVICE_PRIORITIES)[number];
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const COMMUNICATION_METHODS = ['Email', 'Phone', 'Mobile', 'SMS', 'WhatsApp'] as const;
-export type CommunicationMethod = (typeof COMMUNICATION_METHODS)[number];
+export type CommunicationMethod = string;
+
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
+export const INDUSTRIES = [
+  'Banking & Finance',
+  'Education',
+  'Government Services',
+  'Healthcare',
+  'Hospitality',
+  'Logistics',
+  'Manufacturing',
+  'Oil & Gas',
+  'Real Estate',
+  'Retail',
+  'Telecommunications',
+] as const;
 
 export const BILLING_CYCLES = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual', 'Per Visit'] as const;
 export type BillingCycle = (typeof BILLING_CYCLES)[number];

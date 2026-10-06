@@ -1,3 +1,4 @@
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const DOCUMENT_CATEGORIES = [
   'Legal Documents',
   'Commercial Registration',
@@ -9,7 +10,7 @@ export const DOCUMENT_CATEGORIES = [
   'Compliance Documents',
   'Other',
 ] as const;
-export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+export type DocumentCategory = string;
 
 export const DOCUMENT_ACCESS_LEVELS = ['Internal', 'Restricted', 'Customer Visible'] as const;
 export type DocumentAccess = (typeof DOCUMENT_ACCESS_LEVELS)[number];

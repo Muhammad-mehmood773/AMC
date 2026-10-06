@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, Validators } from '@angular/forms';
 import { map, of, startWith, switchMap } from 'rxjs';
+import { type FieldHelp, FieldInfo } from './field-info';
 import { Icon } from './icon';
 
 interface ControlSnapshot {
@@ -19,19 +20,24 @@ export type FieldErrorMessages = Readonly<Record<string, string>>;
  */
 @Component({
   selector: 'amc-form-field',
-  imports: [Icon],
+  imports: [FieldInfo, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
   template: `
     <div class="flex flex-col gap-1.5">
       @if (label()) {
         <div class="flex items-baseline justify-between gap-2">
-          <label [for]="for()" class="amc-label">
-            {{ label() }}
-            @if (isRequired()) {
-              <span class="ml-0.5 text-danger" aria-hidden="true">*</span>
+          <span class="flex min-w-0 items-center gap-1">
+            <label [for]="for()" class="amc-label">
+              {{ label() }}
+              @if (isRequired()) {
+                <span class="ml-0.5 text-danger" aria-hidden="true">*</span>
+              }
+            </label>
+            @if (help(); as content) {
+              <amc-field-info [help]="content" [label]="label()" />
             }
-          </label>
+          </span>
           @if (corner()) {
             <span class="text-xs text-ink-subtle">{{ corner() }}</span>
           }
@@ -56,6 +62,8 @@ export class FormField {
   readonly for = input('');
   readonly hint = input('');
   readonly corner = input('');
+  /** Optional contextual help shown in an (i) popover beside the label. */
+  readonly help = input<FieldHelp | null>(null);
   readonly required = input<boolean | undefined>(undefined);
   readonly control = input<AbstractControl | null>(null);
   readonly messages = input<FieldErrorMessages>({});

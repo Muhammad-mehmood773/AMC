@@ -68,19 +68,6 @@ export const LOOKUPS_SEED: CustomerLookups = {
     { id: 'TER-AS', name: 'Abha & Asir', region: 'Southern' },
     { id: 'TER-GC', name: 'GCC Partners', region: 'GCC' },
   ],
-  industries: [
-    'Banking & Finance',
-    'Education',
-    'Government Services',
-    'Healthcare',
-    'Hospitality',
-    'Logistics',
-    'Manufacturing',
-    'Oil & Gas',
-    'Real Estate',
-    'Retail',
-    'Telecommunications',
-  ],
   countries: [
     {
       name: 'Saudi Arabia',

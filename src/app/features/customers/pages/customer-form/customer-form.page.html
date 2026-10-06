@@ -124,6 +124,7 @@
               label="Customer Code"
               for="cf-code"
               [control]="b.controls.code"
+              [help]="help.code"
               [messages]="patternMessages.code"
               [hint]="editing ? 'Codes cannot be changed after creation.' : 'Auto-generated; you may override it.'"
             >
@@ -147,16 +148,17 @@
             >
               <input id="cf-legal" class="amc-input" formControlName="legalName" placeholder="Registered legal name" />
             </amc-form-field>
-            <amc-form-field label="Customer Type" for="cf-type" [control]="b.controls.type">
-              <amc-select inputId="cf-type" formControlName="type" [options]="typeOptions" />
+            <amc-form-field label="Customer Type" for="cf-type" [control]="b.controls.type" [help]="help.type">
+              <amc-lookup-select inputId="cf-type" formControlName="type" [type]="lookupTypes.customerType" />
             </amc-form-field>
-            <amc-form-field label="Customer Category" for="cf-category" [control]="b.controls.category">
-              <amc-select inputId="cf-category" formControlName="category" [options]="categoryOptions" />
+            <amc-form-field label="Customer Category" for="cf-category" [control]="b.controls.category" [help]="help.category">
+              <amc-lookup-select inputId="cf-category" formControlName="category" [type]="lookupTypes.customerCategory" />
             </amc-form-field>
             <amc-form-field
               label="Customer Status"
               for="cf-status"
               [control]="b.controls.status"
+              [help]="help.status"
               [hint]="b.value.status === 'Inactive' || b.value.status === 'Archived' ? 'New operational transactions will be blocked.' : ''"
             >
               <amc-select inputId="cf-status" formControlName="status" [options]="statusOptions" />
@@ -181,17 +183,17 @@
           formGroupName="legal"
         >
           <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-            <amc-form-field label="Commercial Registration (CR) Number" for="cf-cr" [control]="l.controls.crNumber" [messages]="patternMessages.crNumber" hint="10 digits">
+            <amc-form-field label="Commercial Registration (CR) Number" for="cf-cr" [control]="l.controls.crNumber" [help]="help.crNumber" [messages]="patternMessages.crNumber" hint="10 digits">
               <input id="cf-cr" class="amc-input font-mono" formControlName="crNumber" inputmode="numeric" maxlength="10" placeholder="1010123456" />
             </amc-form-field>
-            <amc-form-field label="VAT / Tax Registration Number" for="cf-vat" [control]="l.controls.vatNumber" [messages]="patternMessages.vatNumber" hint="15 digits, starts and ends with 3">
+            <amc-form-field label="VAT / Tax Registration Number" for="cf-vat" [control]="l.controls.vatNumber" [help]="help.vatNumber" [messages]="patternMessages.vatNumber" hint="15 digits, starts and ends with 3">
               <input id="cf-vat" class="amc-input font-mono" formControlName="vatNumber" inputmode="numeric" maxlength="15" placeholder="300000000000003" />
             </amc-form-field>
-            <amc-form-field label="National Address Reference" for="cf-nat" [control]="l.controls.nationalAddressRef" [messages]="patternMessages.nationalAddress" hint="Short address, e.g. RRRD2929">
+            <amc-form-field label="National Address Reference" for="cf-nat" [control]="l.controls.nationalAddressRef" [help]="help.nationalAddress" [messages]="patternMessages.nationalAddress" hint="Short address, e.g. RRRD2929">
               <input id="cf-nat" class="amc-input font-mono uppercase" formControlName="nationalAddressRef" maxlength="8" />
             </amc-form-field>
             <amc-form-field label="Industry" for="cf-industry" [control]="l.controls.industry">
-              <amc-select inputId="cf-industry" formControlName="industry" [options]="lookups.industryOptions()" placeholder="Select industry…" [clearable]="true" />
+              <amc-lookup-select inputId="cf-industry" formControlName="industry" [type]="lookupTypes.industry" [clearable]="true" />
             </amc-form-field>
             <amc-form-field label="Company Registration Date" for="cf-regdate" [control]="l.controls.registrationDate">
               <amc-date-picker inputId="cf-regdate" formControlName="registrationDate" />
@@ -239,8 +241,8 @@
             <amc-form-field label="Phone" for="cf-phone" [control]="c.controls.phone" [messages]="patternMessages.phone">
               <input id="cf-phone" type="tel" class="amc-input" formControlName="phone" placeholder="+966 11 XXX XXXX" />
             </amc-form-field>
-            <amc-form-field label="Preferred Communication Method" for="cf-comm" [control]="c.controls.preferredCommunication">
-              <amc-select inputId="cf-comm" formControlName="preferredCommunication" [options]="communicationOptions" />
+            <amc-form-field label="Preferred Communication Method" for="cf-comm" [control]="c.controls.preferredCommunication" [help]="help.communication">
+              <amc-lookup-select inputId="cf-comm" formControlName="preferredCommunication" [type]="lookupTypes.communicationMethod" />
             </amc-form-field>
           </div>
         </amc-panel>
@@ -256,7 +258,7 @@
           formGroupName="commercial"
         >
           <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-            <amc-form-field label="Account Manager" for="cf-am" [control]="m.controls.accountManagerId">
+            <amc-form-field label="Account Manager" for="cf-am" [control]="m.controls.accountManagerId" [help]="help.accountManager">
               <amc-select inputId="cf-am" formControlName="accountManagerId" [options]="lookups.accountManagerOptions()" placeholder="Select account manager…" />
             </amc-form-field>
             <amc-form-field label="Sales Representative" for="cf-sales" [control]="m.controls.salesRepId">
@@ -268,7 +270,7 @@
             <amc-form-field label="Currency" for="cf-currency" [control]="m.controls.currency">
               <amc-select inputId="cf-currency" formControlName="currency" [options]="lookups.currencyOptions()" />
             </amc-form-field>
-            <amc-form-field label="Customer Credit Limit" for="cf-credit" [control]="m.controls.creditLimit" hint="Leave empty for no limit.">
+            <amc-form-field label="Customer Credit Limit" for="cf-credit" [control]="m.controls.creditLimit" [help]="help.creditLimit">
               <div class="relative">
                 <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-subtle">{{ m.value.currency }}</span>
                 <input id="cf-credit" type="number" min="0" step="1000" class="amc-input pl-12 tabular-nums" formControlName="creditLimit" placeholder="0" />
@@ -300,16 +302,16 @@
             <amc-form-field label="Service Priority" for="cf-priority" [control]="o.controls.servicePriority">
               <amc-select inputId="cf-priority" formControlName="servicePriority" [options]="priorityOptions" />
             </amc-form-field>
-            <amc-form-field label="Default SLA" for="cf-sla" [control]="o.controls.defaultSlaId">
+            <amc-form-field label="Default SLA" for="cf-sla" [control]="o.controls.defaultSlaId" [help]="help.defaultSla">
               <amc-select inputId="cf-sla" formControlName="defaultSlaId" [options]="lookups.slaOptions()" placeholder="No default SLA" [clearable]="true" />
             </amc-form-field>
             <amc-form-field label="Service Region" for="cf-sregion" [control]="o.controls.serviceRegion">
               <amc-select inputId="cf-sregion" formControlName="serviceRegion" [options]="lookups.serviceRegionOptions()" placeholder="Not set" [clearable]="true" />
             </amc-form-field>
-            <amc-form-field label="Service Territory" for="cf-territory" [control]="o.controls.serviceTerritoryId">
+            <amc-form-field label="Service Territory" for="cf-territory" [control]="o.controls.serviceTerritoryId" [help]="help.serviceTerritory">
               <amc-select inputId="cf-territory" formControlName="serviceTerritoryId" [options]="territoryOptions()" placeholder="Not set" [clearable]="true" />
             </amc-form-field>
-            <amc-form-field label="Preferred Service Window" for="cf-window" [control]="o.controls.preferredServiceWindow">
+            <amc-form-field label="Preferred Service Window" for="cf-window" [control]="o.controls.preferredServiceWindow" [help]="help.preferredServiceWindow">
               <amc-select inputId="cf-window" formControlName="preferredServiceWindow" [options]="windowOptions" placeholder="No preference" [clearable]="true" />
             </amc-form-field>
             <div class="flex items-end pb-1">

@@ -42,6 +42,7 @@
             label="Site Code"
             for="sf-code"
             [control]="i.controls.code"
+            [help]="help.code"
             [messages]="codeMessages"
             [hint]="editing ? 'Codes cannot be changed after creation.' : 'Must be unique across the organization.'"
           >
@@ -54,14 +55,15 @@
             label="Customer"
             for="sf-customer"
             [control]="i.controls.customerId"
+            [help]="help.customer"
             [hint]="editing ? 'A site cannot be moved to another customer.' : 'Only active customers can receive new sites.'"
           >
             <amc-select inputId="sf-customer" formControlName="customerId" [options]="customerOptions()" placeholder="Select customer…" (selectionChange)="applyCustomerDefaults()" />
           </amc-form-field>
-          <amc-form-field label="Site Type" for="sf-type" [control]="i.controls.type">
-            <amc-select inputId="sf-type" formControlName="type" [options]="typeOptions" />
+          <amc-form-field label="Site Type" for="sf-type" [control]="i.controls.type" [help]="help.type">
+            <amc-lookup-select inputId="sf-type" formControlName="type" [type]="lookupTypes.siteType" />
           </amc-form-field>
-          <amc-form-field label="Site Status" for="sf-status" [control]="i.controls.status">
+          <amc-form-field label="Site Status" for="sf-status" [control]="i.controls.status" [help]="help.status">
             <amc-select inputId="sf-status" formControlName="status" [options]="statusOptions" />
           </amc-form-field>
         </div>
@@ -79,14 +81,14 @@
           <amc-icon name="copy" [size]="14" />
           Copy customer address
         </button>
-        <amc-address-fields [group]="form.controls.location" idPrefix="sf" addressLabel="Full Address" />
+        <amc-address-fields [group]="form.controls.location" idPrefix="sf" addressLabel="Full Address" [addressHelp]="help.fullAddress" />
       </amc-panel>
 
       <!-- C. Site operations -->
       @let o = form.controls.operations;
       <amc-panel title="Site operations" description="On-site contacts, hours and access" icon="clock" formGroupName="operations">
         <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field label="Site Contact" for="sf-contact" [control]="o.controls.siteContactId" [hint]="selectedCustomer() ? '' : 'Select a customer first.'">
+          <amc-form-field label="Site Contact" for="sf-contact" [control]="o.controls.siteContactId" [help]="help.siteContact" [hint]="selectedCustomer() ? '' : 'Select a customer first.'">
             <amc-select inputId="sf-contact" formControlName="siteContactId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
           </amc-form-field>
           <amc-form-field label="Site Manager" for="sf-manager" [control]="o.controls.siteManagerId">
@@ -123,7 +125,7 @@
         formGroupName="service"
       >
         <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field label="Default SLA" for="sf-sla" [control]="s.controls.defaultSlaId">
+          <amc-form-field label="Default SLA" for="sf-sla" [control]="s.controls.defaultSlaId" [help]="help.defaultSla">
             <amc-select inputId="sf-sla" formControlName="defaultSlaId" [options]="lookups.slaOptions()" placeholder="No default SLA" [clearable]="true" />
           </amc-form-field>
           <amc-form-field label="Service Territory" for="sf-territory" [control]="s.controls.serviceTerritoryId">
@@ -157,7 +159,7 @@
           <amc-form-field label="Site Instructions" for="sf-sinstr" [control]="n.controls.siteInstructions" hint="General instructions for anyone visiting.">
             <textarea id="sf-sinstr" class="amc-textarea" formControlName="siteInstructions"></textarea>
           </amc-form-field>
-          <amc-form-field label="Technician Instructions" for="sf-tinstr" [control]="n.controls.technicianInstructions" hint="Shown on work orders for this site.">
+          <amc-form-field label="Technician Instructions" for="sf-tinstr" [control]="n.controls.technicianInstructions" [help]="help.technicianInstructions">
             <textarea id="sf-tinstr" class="amc-textarea" formControlName="technicianInstructions"></textarea>
           </amc-form-field>
           <amc-form-field label="Internal Notes" for="sf-inotes" [control]="n.controls.internalNotes" hint="Visible to internal users only.">

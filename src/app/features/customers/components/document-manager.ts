@@ -39,14 +39,17 @@ import { CustomerLookupsStore } from '../data/lookups.store';
 import { DOCUMENT_STATUS_TONE } from '../models/display';
 import {
   DOCUMENT_ACCESS_LEVELS,
-  DOCUMENT_CATEGORIES,
   DOCUMENT_STATUSES,
   type DocumentAccess,
   type DocumentCategory,
   type DocumentListItem,
   type DocumentStatus,
 } from '../models/document.model';
+import { LookupSelect } from '@shared/ui/lookup-select';
 import { Select } from '@shared/ui/select';
+import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
+import { LOOKUP } from '../data/customer-site.lookups';
+import { DOCUMENT_FIELD_HELP } from '../data/field-help';
 import { DatePicker } from '@shared/ui/date-picker';
 
 function expiryAfterIssue(group: AbstractControl): ValidationErrors | null {
@@ -73,6 +76,7 @@ const WORKFLOW = ['Expiry date', 'Monitoring', 'Notification', 'Responsible user
     Spinner,
     StatusBadge,
     Select,
+    LookupSelect,
     DatePicker,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -170,8 +174,8 @@ const WORKFLOW = ['Expiry date', 'Monitoring', 'Notification', 'Responsible user
           <amc-form-field label="Document Name" for="doc-name" [control]="uploadForm.controls.name" class="sm:col-span-2">
             <input id="doc-name" class="amc-input" formControlName="name" placeholder="e.g. Commercial Registration Certificate" />
           </amc-form-field>
-          <amc-form-field label="Document Type" for="doc-type" [control]="uploadForm.controls.category">
-            <amc-select inputId="doc-type" formControlName="category" [options]="categoryOptions" />
+          <amc-form-field label="Document Type" for="doc-type" [control]="uploadForm.controls.category" [help]="help.category">
+            <amc-lookup-select inputId="doc-type" formControlName="category" [type]="lookupTypes.documentCategory" />
           </amc-form-field>
           <amc-form-field label="Document Number" for="doc-number" [control]="uploadForm.controls.documentNumber">
             <input id="doc-number" class="amc-input font-mono" formControlName="documentNumber" placeholder="Certificate / policy number" />
@@ -189,6 +193,7 @@ const WORKFLOW = ['Expiry date', 'Monitoring', 'Notification', 'Responsible user
             label="Expiry Date"
             for="doc-expiry"
             [control]="uploadForm.controls.expiryDate"
+            [help]="help.expiryDate"
             [hint]="uploadForm.hasError('expiryBeforeIssue') ? '' : 'Leave empty if the document does not expire.'"
           >
             <amc-date-picker inputId="doc-expiry" formControlName="expiryDate" [attr.aria-invalid]="uploadForm.hasError('expiryBeforeIssue') && uploadForm.touched" />
@@ -197,14 +202,14 @@ const WORKFLOW = ['Expiry date', 'Monitoring', 'Notification', 'Responsible user
             }
           </amc-form-field>
           @if (uploadValue().expiryDate) {
-            <amc-form-field label="Reminder" for="doc-reminder" [control]="uploadForm.controls.reminderDays" hint="Notify before the expiry date.">
+            <amc-form-field label="Reminder" for="doc-reminder" [control]="uploadForm.controls.reminderDays" [help]="help.reminder">
               <amc-select inputId="doc-reminder" formControlName="reminderDays" [options]="reminderOptions" />
             </amc-form-field>
-            <amc-form-field label="Responsible User" for="doc-owner" [control]="uploadForm.controls.responsibleUserId" [required]="true" hint="Receives expiry notifications and follows up on renewal.">
+            <amc-form-field label="Responsible User" for="doc-owner" [control]="uploadForm.controls.responsibleUserId" [required]="true" [help]="help.responsible">
               <amc-select inputId="doc-owner" formControlName="responsibleUserId" [options]="lookups.userOptions()" placeholder="Select user…" />
             </amc-form-field>
           }
-          <amc-form-field label="Access Control" for="doc-access" [control]="uploadForm.controls.access">
+          <amc-form-field label="Access Control" for="doc-access" [control]="uploadForm.controls.access" [help]="help.access">
             <amc-select inputId="doc-access" formControlName="access" [options]="accessOptions" />
           </amc-form-field>
           <amc-form-field label="Notes" for="doc-notes" [control]="uploadForm.controls.notes" class="sm:col-span-2">
@@ -395,7 +400,10 @@ export class DocumentManager {
   protected readonly search = signal('');
   protected readonly filters = signal<FilterValues>({});
 
-  protected readonly categoryOptions = toOptions(DOCUMENT_CATEGORIES);
+  protected readonly lookupTypes = LOOKUP;
+  protected readonly help = DOCUMENT_FIELD_HELP;
+  private readonly lookupValues = inject(LookupValuesStore);
+  protected readonly categoryOptions = this.lookupValues.options(LOOKUP.documentCategory);
   protected readonly statusOptions = toOptions(DOCUMENT_STATUSES);
   protected readonly accessOptions = toOptions(DOCUMENT_ACCESS_LEVELS);
   protected readonly reminderOptions = [7, 14, 30, 60, 90].map((d) => ({ value: d, label: `${d} days before` }));
@@ -423,7 +431,7 @@ export class DocumentManager {
       ...(this.siteId()
         ? []
         : [{ key: 'site', label: 'Site', type: 'multiselect' as const, options: [{ value: '__none', label: 'Customer level (no site)' }, ...[...sites].map(([value, label]) => ({ value, label }))] }]),
-      { key: 'category', label: 'Document Type', type: 'multiselect', options: this.categoryOptions },
+      { key: 'category', label: 'Document Type', type: 'multiselect', options: this.categoryOptions() },
       { key: 'status', label: 'Status', type: 'multiselect', options: this.statusOptions },
       { key: 'access', label: 'Access Control', type: 'multiselect', options: this.accessOptions },
       { key: 'responsible', label: 'Responsible User', type: 'multiselect', options: [...users].map(([value, label]) => ({ value, label })) },

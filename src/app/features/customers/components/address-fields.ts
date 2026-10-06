@@ -7,6 +7,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import type { FieldHelp } from '@shared/ui/field-info';
 import { FormField } from '@shared/ui/form-field';
 import { map, startWith, switchMap } from 'rxjs';
 import { CustomerLookupsStore } from '../data/lookups.store';
@@ -78,7 +79,7 @@ export function addressValue(group: AddressFormGroup): Address {
       <amc-form-field label="Postal Code" [for]="id('postal')" [control]="g.controls.postalCode" [messages]="messages.postalCode">
         <input [id]="id('postal')" class="amc-input" formControlName="postalCode" inputmode="numeric" maxlength="5" placeholder="5 digits" />
       </amc-form-field>
-      <amc-form-field label="Additional Number" [for]="id('additional')" [control]="g.controls.additionalNumber" [messages]="messages.additionalNumber">
+      <amc-form-field label="Additional Number" [for]="id('additional')" [control]="g.controls.additionalNumber" [messages]="messages.additionalNumber" [help]="additionalNumberHelp">
         <input [id]="id('additional')" class="amc-input" formControlName="additionalNumber" inputmode="numeric" maxlength="4" placeholder="4 digits" />
       </amc-form-field>
       <div class="grid grid-cols-2 gap-3">
@@ -89,7 +90,7 @@ export function addressValue(group: AddressFormGroup): Address {
           <input [id]="id('lng')" type="number" step="0.000001" class="amc-input" formControlName="longitude" placeholder="46.6753" />
         </amc-form-field>
       </div>
-      <amc-form-field [label]="addressLabel()" [for]="id('line')" [control]="g.controls.addressLine" class="sm:col-span-2 xl:col-span-3" corner="Max 250 characters">
+      <amc-form-field [label]="addressLabel()" [help]="addressHelp()" [for]="id('line')" [control]="g.controls.addressLine" class="sm:col-span-2 xl:col-span-3" corner="Max 250 characters">
         <textarea [id]="id('line')" class="amc-textarea min-h-20" formControlName="addressLine" placeholder="Full address as it should appear on documents and work orders"></textarea>
       </amc-form-field>
     </div>
@@ -101,6 +102,10 @@ export class AddressFields {
   readonly group = input.required<AddressFormGroup>();
   readonly idPrefix = input('addr');
   readonly addressLabel = input('Address');
+  readonly addressHelp = input<FieldHelp | null>(null);
+
+  protected readonly additionalNumberHelp: FieldHelp =
+    'The 4-digit additional number from the Saudi National Address, used to pinpoint the building.';
 
   protected readonly messages = PATTERN_MESSAGES;
   protected readonly value = toSignal(

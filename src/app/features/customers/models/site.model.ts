@@ -1,6 +1,7 @@
 import type { Auditable, Identifiable } from '@shared/models/entity';
 import type { Address, AgreementState, ServicePriority } from './customer.model';
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const SITE_TYPES = [
   'Head Office',
   'Branch',
@@ -14,7 +15,7 @@ export const SITE_TYPES = [
   'Industrial Site',
   'Other',
 ] as const;
-export type SiteType = (typeof SITE_TYPES)[number];
+export type SiteType = string;
 
 export const SITE_STATUSES = [
   'Planned',

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { LookupValuesApi } from '@shared/lookups/lookup';
 import type { ImportConfig } from '@shared/models/import';
 import { firstValueFrom, forkJoin } from 'rxjs';
 import { ContactApi, CustomerApi, DocumentApi, LookupApi, SiteApi } from './customer-site.api';
@@ -20,12 +21,13 @@ export class CustomerSiteImports {
   private readonly contacts = inject(ContactApi);
   private readonly documents = inject(DocumentApi);
   private readonly lookups = inject(LookupApi);
+  private readonly lookupValues = inject(LookupValuesApi);
 
   async config(entity: ImportEntity): Promise<ImportConfig> {
-    const [customers, sites, lookups] = await firstValueFrom(
-      forkJoin([this.customers.list(), this.sites.list(), this.lookups.get()]),
+    const [customers, sites, lookups, lookupValues] = await firstValueFrom(
+      forkJoin([this.customers.list(), this.sites.list(), this.lookups.get(), this.lookupValues.list()]),
     );
-    const ctx: ImportContext = { customers, sites, lookups };
+    const ctx: ImportContext = { customers, sites, lookups, lookupValues };
     switch (entity) {
       case 'customers':
         return customerImportConfig(ctx, this.customers);

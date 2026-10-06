@@ -23,22 +23,23 @@ import { ContactApi, CustomerApi, SiteApi } from '../data/customer-site.api';
 import { TRANSACTION_BLOCKED_CUSTOMER_STATUSES } from '../data/customer-site.config';
 import {
   CONTACT_STATUSES,
-  CONTACT_TYPES,
   type ContactInput,
   type ContactListItem,
   type ContactStatus,
   type ContactType,
-  PREFERRED_LANGUAGES,
   type PreferredLanguage,
 } from '../models/contact.model';
-import { COMMUNICATION_METHODS, type CommunicationMethod } from '../models/customer.model';
+import type { CommunicationMethod } from '../models/customer.model';
 import { PATTERNS, PATTERN_MESSAGES } from '../utils/form-patterns';
+import { LookupSelect } from '@shared/ui/lookup-select';
 import { Select } from '@shared/ui/select';
+import { LOOKUP } from '../data/customer-site.lookups';
+import { CONTACT_FIELD_HELP } from '../data/field-help';
 
 /** Create / edit dialog for customer and site contacts. */
 @Component({
   selector: 'amc-contact-form-dialog',
-  imports: [Dialog, FormField, ReactiveFormsModule, Spinner, Switch, Select],
+  imports: [Dialog, FormField, LookupSelect, ReactiveFormsModule, Spinner, Switch, Select],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <amc-dialog
@@ -56,7 +57,7 @@ import { Select } from '@shared/ui/select';
             label="Site"
             for="ct-site"
             [control]="form.controls.siteId"
-            hint="Leave empty for a customer-level contact."
+            [help]="help.site"
           >
             <amc-select inputId="ct-site" formControlName="siteId" [options]="siteOptions()" placeholder="Customer level (no site)" [clearable]="true" />
           </amc-form-field>
@@ -81,14 +82,14 @@ import { Select } from '@shared/ui/select';
           <amc-form-field label="Phone" for="ct-phone" [control]="form.controls.phone" [messages]="phoneMessages">
             <input id="ct-phone" type="tel" class="amc-input" formControlName="phone" placeholder="+966 11 XXX XXXX" />
           </amc-form-field>
-          <amc-form-field label="Contact Type" for="ct-type" [control]="form.controls.type">
-            <amc-select inputId="ct-type" formControlName="type" [options]="typeOptions" />
+          <amc-form-field label="Contact Type" for="ct-type" [control]="form.controls.type" [help]="help.type">
+            <amc-lookup-select inputId="ct-type" formControlName="type" [type]="lookupTypes.contactType" />
           </amc-form-field>
           <amc-form-field label="Preferred Language" for="ct-lang" [control]="form.controls.preferredLanguage">
-            <amc-select inputId="ct-lang" formControlName="preferredLanguage" [options]="languageOptions" />
+            <amc-lookup-select inputId="ct-lang" formControlName="preferredLanguage" [type]="lookupTypes.preferredLanguage" />
           </amc-form-field>
-          <amc-form-field label="Preferred Communication Method" for="ct-comm" [control]="form.controls.preferredCommunication">
-            <amc-select inputId="ct-comm" formControlName="preferredCommunication" [options]="communicationOptions" />
+          <amc-form-field label="Preferred Communication Method" for="ct-comm" [control]="form.controls.preferredCommunication" [help]="help.communication">
+            <amc-lookup-select inputId="ct-comm" formControlName="preferredCommunication" [type]="lookupTypes.communicationMethod" />
           </amc-form-field>
           <amc-form-field label="Status" for="ct-status" [control]="form.controls.status">
             <amc-select inputId="ct-status" formControlName="status" [options]="statusOptions" />
@@ -132,10 +133,9 @@ export class ContactFormDialog {
   readonly saved = output<void>();
 
   protected readonly saving = signal(false);
-  protected readonly typeOptions = toOptions(CONTACT_TYPES);
+  protected readonly lookupTypes = LOOKUP;
+  protected readonly help = CONTACT_FIELD_HELP;
   protected readonly statusOptions = toOptions(CONTACT_STATUSES);
-  protected readonly languageOptions = toOptions(PREFERRED_LANGUAGES);
-  protected readonly communicationOptions = toOptions(COMMUNICATION_METHODS);
   protected readonly phoneMessages = PATTERN_MESSAGES.phone;
 
   protected readonly form = this.fb.group({

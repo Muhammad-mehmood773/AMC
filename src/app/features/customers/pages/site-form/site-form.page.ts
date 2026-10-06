@@ -36,13 +36,14 @@ import { filter, firstValueFrom, map, of, startWith, switchMap, timer } from 'rx
 import { AddressFields, addressValue, createAddressGroup } from '../../components/address-fields';
 import { ContactApi, CustomerApi, SiteApi } from '../../data/customer-site.api';
 import { TRANSACTION_BLOCKED_CUSTOMER_STATUSES } from '../../data/customer-site.config';
+import { LOOKUP } from '../../data/customer-site.lookups';
+import { SITE_FIELD_HELP } from '../../data/field-help';
 import { CustomerLookupsStore } from '../../data/lookups.store';
 import { ModuleHandoff } from '../../data/module-handoff.service';
 import { SERVICE_PRIORITIES, type ServicePriority } from '../../models/customer.model';
 import { SITE_STATUS_TONE } from '../../models/display';
 import {
   SITE_STATUSES,
-  SITE_TYPES,
   type SiteListItem,
   type SiteStatus,
   type SiteType,
@@ -53,6 +54,7 @@ import {
   type Weekday,
 } from '../../models/site.model';
 import { PATTERNS, PATTERN_MESSAGES } from '../../utils/form-patterns';
+import { LookupSelect } from '@shared/ui/lookup-select';
 import { Select } from '@shared/ui/select';
 
 type SaveIntent = 'save' | 'contact' | 'asset';
@@ -75,6 +77,7 @@ type SaveIntent = 'save' | 'contact' | 'asset';
     StatusBadge,
     Switch,
     Select,
+    LookupSelect,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './site-form.page.html',
@@ -140,7 +143,8 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
     }),
   });
 
-  protected readonly typeOptions = toOptions(SITE_TYPES);
+  protected readonly lookupTypes = LOOKUP;
+  protected readonly help = SITE_FIELD_HELP;
   protected readonly statusOptions = toOptions(SITE_STATUSES);
   protected readonly priorityOptions = toOptions(SERVICE_PRIORITIES);
   protected readonly visitTimeOptions = toOptions(VISIT_TIMES);

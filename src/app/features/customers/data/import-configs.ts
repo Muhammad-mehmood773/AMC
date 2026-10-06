@@ -1,18 +1,14 @@
+import type { LookupValue } from '@shared/lookups/lookup';
 import type { ImportColumn, ImportConfig, ImportRow } from '@shared/models/import';
 import {
   CONTACT_STATUSES,
-  CONTACT_TYPES,
   type ContactInput,
   type ContactStatus,
   type ContactType,
-  PREFERRED_LANGUAGES,
   type PreferredLanguage,
 } from '../models/contact.model';
 import {
-  COMMUNICATION_METHODS,
-  CUSTOMER_CATEGORIES,
   CUSTOMER_STATUSES,
-  CUSTOMER_TYPES,
   type CommunicationMethod,
   type CustomerCategory,
   type CustomerListItem,
@@ -24,7 +20,6 @@ import {
 } from '../models/customer.model';
 import {
   DOCUMENT_ACCESS_LEVELS,
-  DOCUMENT_CATEGORIES,
   type DocumentAccess,
   type DocumentCategory,
   type DocumentUpload,
@@ -32,7 +27,6 @@ import {
 import type { CustomerLookups } from '../models/lookup.model';
 import {
   SITE_STATUSES,
-  SITE_TYPES,
   type SiteListItem,
   type SiteStatus,
   type SiteType,
@@ -45,11 +39,18 @@ import {
 import { PATTERNS, splitName } from '../utils/form-patterns';
 import { TRANSACTION_BLOCKED_CUSTOMER_STATUSES } from './customer-site.config';
 import type { ContactApi, CustomerApi, DocumentApi, SiteApi } from './customer-site.api';
+import { LOOKUP } from './customer-site.lookups';
 
 export interface ImportContext {
   readonly customers: readonly CustomerListItem[];
   readonly sites: readonly SiteListItem[];
   readonly lookups: CustomerLookups;
+  readonly lookupValues: readonly LookupValue[];
+}
+
+/** Active names of a user-maintainable lookup list. */
+function lookupNames(ctx: ImportContext, type: string): string[] {
+  return ctx.lookupValues.filter((v) => v.type === type && v.status === 'Active').map((v) => v.name);
 }
 
 const yesNo = (value: string) => value === 'Yes';
@@ -143,12 +144,12 @@ export function customerImportConfig(ctx: ImportContext, api: CustomerApi): Impo
       },
       { key: 'name', label: 'Customer Name', required: true },
       { key: 'legalName', label: 'Legal Entity Name' },
-      { key: 'type', label: 'Customer Type', required: true, options: CUSTOMER_TYPES },
-      { key: 'category', label: 'Customer Category', required: true, options: CUSTOMER_CATEGORIES },
+      { key: 'type', label: 'Customer Type', required: true, options: lookupNames(ctx, LOOKUP.customerType) },
+      { key: 'category', label: 'Customer Category', required: true, options: lookupNames(ctx, LOOKUP.customerCategory) },
       { key: 'status', label: 'Customer Status', options: CUSTOMER_STATUSES, description: 'Defaults to Active' },
       { key: 'crNumber', label: 'CR Number', unique: true, aliases: ['Commercial Registration'], validate: pattern(PATTERNS.crNumber, 'CR number must be 10 digits') },
       { key: 'vatNumber', label: 'VAT Number', unique: true, aliases: ['Tax Registration Number'], validate: pattern(PATTERNS.vatNumber, 'VAT must be 15 digits starting and ending with 3') },
-      { key: 'industry', label: 'Industry', options: lookups.industries },
+      { key: 'industry', label: 'Industry', options: lookupNames(ctx, LOOKUP.industry) },
       ...addressColumns(ctx),
       { key: 'contactName', label: 'Primary Contact Name', required: true },
       { key: 'contactEmail', label: 'Primary Contact Email', required: true, type: 'email' },
@@ -268,7 +269,7 @@ export function siteImportConfig(ctx: ImportContext, api: SiteApi): ImportConfig
           return TRANSACTION_BLOCKED_CUSTOMER_STATUSES.includes(customer.status) ? `Customer ${v} is ${customer.status.toLowerCase()}` : null;
         },
       },
-      { key: 'type', label: 'Site Type', required: true, options: SITE_TYPES },
+      { key: 'type', label: 'Site Type', required: true, options: lookupNames(ctx, LOOKUP.siteType) },
       { key: 'status', label: 'Site Status', options: SITE_STATUSES, description: 'Defaults to Active' },
       ...addressColumns(ctx, 'Full Address'),
       { key: 'operatingHours', label: 'Operating Hours' },
@@ -368,10 +369,10 @@ export function contactImportConfig(ctx: ImportContext, api: ContactApi): Import
       { key: 'email', label: 'Email', required: true, type: 'email', unique: true },
       { key: 'mobile', label: 'Mobile', type: 'phone' },
       { key: 'phone', label: 'Phone', type: 'phone' },
-      { key: 'type', label: 'Contact Type', required: true, options: CONTACT_TYPES },
+      { key: 'type', label: 'Contact Type', required: true, options: lookupNames(ctx, LOOKUP.contactType) },
       { key: 'isPrimary', label: 'Primary Contact', type: 'boolean' },
-      { key: 'language', label: 'Preferred Language', options: PREFERRED_LANGUAGES },
-      { key: 'communication', label: 'Preferred Communication Method', options: COMMUNICATION_METHODS },
+      { key: 'language', label: 'Preferred Language', options: lookupNames(ctx, LOOKUP.preferredLanguage) },
+      { key: 'communication', label: 'Preferred Communication Method', options: lookupNames(ctx, LOOKUP.communicationMethod) },
       { key: 'status', label: 'Status', options: CONTACT_STATUSES, description: 'Defaults to Active' },
       { key: 'notes', label: 'Notes' },
     ],
@@ -423,7 +424,7 @@ export function documentImportConfig(ctx: ImportContext, api: DocumentApi): Impo
     ],
     columns: [
       { key: 'name', label: 'Document Name', required: true },
-      { key: 'category', label: 'Document Type', required: true, options: DOCUMENT_CATEGORIES },
+      { key: 'category', label: 'Document Type', required: true, options: lookupNames(ctx, LOOKUP.documentCategory) },
       { key: 'customerCode', label: 'Customer Code', required: true, validate: (v) => (customerByCode.has(v.toLowerCase()) ? null : `Customer ${v} does not exist`) },
       {
         key: 'siteCode',

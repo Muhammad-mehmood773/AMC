@@ -41,6 +41,9 @@ abstract class ChoiceBase {
   protected readonly query = signal('');
   protected readonly activeIndex = signal(0);
   protected readonly disabled = signal(false);
+  /** Disables the control when it is used standalone (outside a form control). */
+  readonly forceDisabled = input(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.forceDisabled());
   protected readonly listId = `amc-listbox-${Math.random().toString(36).slice(2, 9)}`;
 
   protected readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
@@ -89,7 +92,7 @@ abstract class ChoiceBase {
   }
 
   protected toggleOpen(): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     this.open.set(!this.open());
     if (!this.open()) this.onTouched();
   }
@@ -228,7 +231,7 @@ const SELECT_TEMPLATE = `
     [id]="inputId() || null"
     [class]="triggerClass"
     [class.pr-14]="showClear()"
-    [disabled]="disabled()"
+    [disabled]="isDisabled()"
     aria-haspopup="listbox"
     [attr.aria-expanded]="open()"
     [attr.aria-controls]="listId"
@@ -273,7 +276,7 @@ const MULTISELECT_TEMPLATE = `
     type="button"
     [id]="inputId() || null"
     [class]="triggerClass"
-    [disabled]="disabled()"
+    [disabled]="isDisabled()"
     aria-haspopup="listbox"
     [attr.aria-expanded]="open()"
     [attr.aria-controls]="listId"
@@ -342,7 +345,7 @@ export class Select extends ChoiceBase implements ControlValueAccessor {
     this.options().find((o) => o.value === this.value()) ?? null,
   );
   protected readonly showClear = computed(
-    () => this.clearable() && !this.disabled() && this.value() !== null && this.value() !== '',
+    () => this.clearable() && !this.isDisabled() && this.value() !== null && this.value() !== '',
   );
 
   writeValue(value: ChoiceValue | null): void {

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { LookupValuesApi } from '@shared/lookups/lookup';
 import { firstValueFrom } from 'rxjs';
 import { ContactApi, CustomerApi, DocumentApi, SiteApi } from '../customer-site.api';
 import { provideCustomerSiteData } from '../provide-customer-site-data';
@@ -60,6 +61,24 @@ describe('Customer & Site mock data layer', () => {
     const created = await firstValueFrom(contacts.create({ ...billing, firstName: 'New', lastName: 'Billing', isPrimary: true }));
     const primaries = store.db.contacts.filter((c) => c.customerId === customer.id && c.siteId === null && c.type === 'Billing' && c.isPrimary);
     expect(primaries.map((c) => c.id)).toEqual([created.id]);
+  });
+
+  it('manages generic lookup values with duplicate, system and cascade rules', async () => {
+    const lookups = TestBed.inject(LookupValuesApi);
+    const types = await firstValueFrom(lookups.list(['customer-type']));
+    const corporate = types.find((v) => v.name === 'Corporate')!;
+    await expect(firstValueFrom(lookups.create('customer-type', ' corporate '))).rejects.toThrow(/already exists/);
+    const created = await firstValueFrom(lookups.create('customer-type', 'Semi-Government'));
+    expect(created).toMatchObject({ type: 'customer-type', name: 'Semi-Government', status: 'Active' });
+
+    const before = store.db.customers.filter((c) => c.type === 'Corporate').length;
+    await firstValueFrom(lookups.update(corporate.id, { name: 'Enterprise Corporate' }));
+    expect(store.db.customers.filter((c) => c.type === 'Enterprise Corporate')).toHaveLength(before);
+    expect(store.db.customers.some((c) => c.type === 'Corporate')).toBe(false);
+
+    const primary = (await firstValueFrom(lookups.list(['contact-type']))).find((v) => v.name === 'Primary')!;
+    expect(primary.isSystem).toBe(true);
+    await expect(firstValueFrom(lookups.update(primary.id, { name: 'Main' }))).rejects.toThrow(/System values/);
   });
 
   it('versions documents on replace and computes expiry status', async () => {

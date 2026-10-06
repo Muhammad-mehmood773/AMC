@@ -1,6 +1,7 @@
 import type { Auditable, Identifiable } from '@shared/models/entity';
 import type { CommunicationMethod } from './customer.model';
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const CONTACT_TYPES = [
   'Primary',
   'Technical',
@@ -11,13 +12,17 @@ export const CONTACT_TYPES = [
   'Emergency',
   'Other',
 ] as const;
-export type ContactType = (typeof CONTACT_TYPES)[number];
+export type ContactType = string;
+
+/** Contact types that business rules depend on (primary contact, site contact defaults). */
+export const SYSTEM_CONTACT_TYPES: readonly string[] = ['Primary', 'Site Contact'];
 
 export const CONTACT_STATUSES = ['Active', 'Inactive'] as const;
 export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 
+/** Seed values; the list is user-maintainable through the generic lookup mechanism. */
 export const PREFERRED_LANGUAGES = ['English', 'Arabic', 'Urdu', 'Hindi', 'French'] as const;
-export type PreferredLanguage = (typeof PREFERRED_LANGUAGES)[number];
+export type PreferredLanguage = string;
 
 export interface Contact extends Identifiable, Auditable {
   readonly customerId: string;

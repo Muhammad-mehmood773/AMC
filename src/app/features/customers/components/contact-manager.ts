@@ -13,6 +13,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
 import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
+import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import type { MenuItem } from '@shared/ui/action-menu';
 import { Avatar } from '@shared/ui/avatar';
@@ -27,9 +28,9 @@ import { formatDateTime } from '@shared/utils/format';
 import { type FilterField, type FilterValues, filterList, matchesAny } from '@shared/utils/filters';
 import { firstValueFrom } from 'rxjs';
 import { ContactApi } from '../data/customer-site.api';
+import { LOOKUP } from '../data/customer-site.lookups';
 import {
   CONTACT_STATUSES,
-  CONTACT_TYPES,
   type ContactListItem,
 } from '../models/contact.model';
 import { CONTACT_STATUS_TONE } from '../models/display';
@@ -183,6 +184,7 @@ export class ContactManager {
   private readonly api = inject(ContactApi);
   private readonly notify = inject(NotificationPort);
   private readonly confirm = inject(ConfirmDialogService);
+  private readonly lookupValues = inject(LookupValuesStore);
 
   readonly customerId = input<string | null>(null);
   readonly siteId = input<string | null>(null);
@@ -217,7 +219,7 @@ export class ContactManager {
       ...(this.siteId()
         ? []
         : [{ key: 'site', label: 'Site', type: 'multiselect' as const, options: [{ value: '__none', label: 'Customer level (no site)' }, ...[...sites].map(([value, label]) => ({ value, label }))] }]),
-      { key: 'type', label: 'Contact Type', type: 'multiselect', options: toOptions(CONTACT_TYPES) },
+      { key: 'type', label: 'Contact Type', type: 'multiselect', options: this.lookupValues.options(LOOKUP.contactType)() },
       { key: 'status', label: 'Status', type: 'multiselect', options: toOptions(CONTACT_STATUSES) },
       { key: 'primary', label: 'Primary Contact', type: 'select', options: [{ value: 'yes', label: 'Primary only' }, { value: 'no', label: 'Non-primary only' }] },
     ];

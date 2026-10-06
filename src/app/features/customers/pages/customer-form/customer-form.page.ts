@@ -47,13 +47,12 @@ import {
 import { AddressFields, createAddressGroup } from '../../components/address-fields';
 import { CustomerApi, DocumentApi } from '../../data/customer-site.api';
 import { DUPLICATE_FIELD_LABELS } from '../../data/customer-site.config';
+import { LOOKUP } from '../../data/customer-site.lookups';
+import { CUSTOMER_FIELD_HELP } from '../../data/field-help';
 import { CustomerLookupsStore } from '../../data/lookups.store';
 import {
   BILLING_CYCLES,
-  COMMUNICATION_METHODS,
-  CUSTOMER_CATEGORIES,
   CUSTOMER_STATUSES,
-  CUSTOMER_TYPES,
   type BillingCycle,
   type CommunicationMethod,
   type CustomerCategory,
@@ -69,6 +68,7 @@ import {
 } from '../../models/customer.model';
 import { CUSTOMER_STATUS_TONE } from '../../models/display';
 import { PATTERNS, PATTERN_MESSAGES, splitName } from '../../utils/form-patterns';
+import { LookupSelect } from '@shared/ui/lookup-select';
 import { Select } from '@shared/ui/select';
 import { DatePicker } from '@shared/ui/date-picker';
 
@@ -98,6 +98,7 @@ interface FormSection {
     StatusBadge,
     Switch,
     Select,
+    LookupSelect,
     DatePicker,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -190,10 +191,9 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
     { id: 'notes', label: 'Notes & documents', icon: 'sticky-note', group: 'notes' },
   ];
 
-  protected readonly typeOptions = toOptions(CUSTOMER_TYPES);
-  protected readonly categoryOptions = toOptions(CUSTOMER_CATEGORIES);
+  protected readonly lookupTypes = LOOKUP;
+  protected readonly help = CUSTOMER_FIELD_HELP;
   protected readonly statusOptions = toOptions(CUSTOMER_STATUSES);
-  protected readonly communicationOptions = toOptions(COMMUNICATION_METHODS);
   protected readonly billingOptions = toOptions(BILLING_CYCLES);
   protected readonly priorityOptions = toOptions(SERVICE_PRIORITIES);
   protected readonly windowOptions = toOptions(SERVICE_WINDOWS);

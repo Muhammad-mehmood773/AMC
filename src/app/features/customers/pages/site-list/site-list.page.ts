@@ -11,6 +11,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
 import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
+import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import type { MenuItem } from '@shared/ui/action-menu';
 import { type BulkAction, type DataColumn, DataTable, type RowAction } from '@shared/ui/data-table';
@@ -29,7 +30,8 @@ import {
 import { ModuleHandoff } from '../../data/module-handoff.service';
 import { AGREEMENT_STATES, type CustomerStatus } from '../../models/customer.model';
 import { SITE_STATUS_TONE } from '../../models/display';
-import { SITE_STATUSES, SITE_TYPES, type SiteListItem } from '../../models/site.model';
+import { LOOKUP } from '../../data/customer-site.lookups';
+import { SITE_STATUSES, type SiteListItem } from '../../models/site.model';
 
 @Component({
   selector: 'amc-site-list-page',
@@ -94,6 +96,7 @@ export class SiteListPage {
   private readonly confirm = inject(ConfirmDialogService);
   private readonly notify = inject(NotificationPort);
   private readonly handoff = inject(ModuleHandoff);
+  private readonly lookupValues = inject(LookupValuesStore);
 
   readonly customerId = input<string>();
 
@@ -109,7 +112,7 @@ export class SiteListPage {
     const customers = new Map(rows.map((s) => [s.customerId, s.customerName]));
     return [
       { key: 'customer', label: 'Customer', type: 'multiselect', options: [...customers].map(([value, label]) => ({ value, label })).sort((x, y) => x.label.localeCompare(y.label)) },
-      { key: 'type', label: 'Site Type', type: 'multiselect', options: toOptions(SITE_TYPES) },
+      { key: 'type', label: 'Site Type', type: 'multiselect', options: this.lookupValues.options(LOOKUP.siteType)() },
       { key: 'region', label: 'Region', type: 'multiselect', options: unique(rows.map((s) => s.location.region)) },
       { key: 'city', label: 'City', type: 'multiselect', options: unique(rows.map((s) => s.location.city)) },
       { key: 'status', label: 'Status', type: 'multiselect', options: toOptions(SITE_STATUSES) },

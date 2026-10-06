@@ -11,6 +11,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
 import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
+import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import type { MenuItem } from '@shared/ui/action-menu';
 import { type BulkAction, type DataColumn, DataTable, type RowAction } from '@shared/ui/data-table';
@@ -24,14 +25,13 @@ import { type FilterField, type FilterValues, matchesAny, withinRange } from '@s
 import { firstValueFrom } from 'rxjs';
 import { ImportButton } from '../../components/import-button';
 import { CustomerApi } from '../../data/customer-site.api';
+import { LOOKUP } from '../../data/customer-site.lookups';
 import { TRANSACTION_BLOCKED_CUSTOMER_STATUSES } from '../../data/customer-site.config';
 import { CustomerLookupsStore } from '../../data/lookups.store';
 import { ModuleHandoff } from '../../data/module-handoff.service';
 import {
   AGREEMENT_STATES,
-  CUSTOMER_CATEGORIES,
   CUSTOMER_STATUSES,
-  CUSTOMER_TYPES,
   type CustomerListItem,
   type CustomerStatus,
 } from '../../models/customer.model';
@@ -50,6 +50,7 @@ export class CustomerListPage {
   private readonly notify = inject(NotificationPort);
   private readonly handoff = inject(ModuleHandoff);
   protected readonly lookups = inject(CustomerLookupsStore);
+  private readonly lookupValues = inject(LookupValuesStore);
 
   // Query parameters (bound via withComponentInputBinding) seed the initial filters.
   readonly q = input<string>();
@@ -82,8 +83,8 @@ export class CustomerListPage {
     const unique = (values: string[]) => toOptions([...new Set(values)].sort());
     return [
       { key: 'status', label: 'Customer Status', type: 'multiselect', options: toOptions(CUSTOMER_STATUSES) },
-      { key: 'type', label: 'Customer Type', type: 'multiselect', options: toOptions(CUSTOMER_TYPES) },
-      { key: 'category', label: 'Customer Category', type: 'multiselect', options: toOptions(CUSTOMER_CATEGORIES) },
+      { key: 'type', label: 'Customer Type', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerType)() },
+      { key: 'category', label: 'Customer Category', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerCategory)() },
       { key: 'region', label: 'Region', type: 'multiselect', options: unique(rows.map((r) => r.address.region)) },
       { key: 'city', label: 'City', type: 'multiselect', options: unique(rows.map((r) => r.address.city)) },
       { key: 'manager', label: 'Account Manager', type: 'multiselect', options: this.lookups.accountManagerOptions() },

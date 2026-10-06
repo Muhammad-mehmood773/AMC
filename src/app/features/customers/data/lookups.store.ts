@@ -17,7 +17,6 @@ const EMPTY: CustomerLookups = {
   slas: [],
   serviceRegions: [],
   territories: [],
-  industries: [],
   countries: [],
 };
 
@@ -53,7 +52,6 @@ export class CustomerLookupsStore {
     })),
   );
   readonly serviceRegionOptions = computed(() => toPlain(this.data().serviceRegions));
-  readonly industryOptions = computed(() => toPlain(this.data().industries));
   readonly countryOptions = computed(() => toPlain(this.data().countries.map((c) => c.name)));
 
   branchOptions(companyId: string): SelectOption[] {

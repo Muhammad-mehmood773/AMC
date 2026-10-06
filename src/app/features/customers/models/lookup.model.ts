@@ -45,6 +45,5 @@ export interface CustomerLookups {
   readonly slas: readonly SlaLookup[];
   readonly serviceRegions: readonly string[];
   readonly territories: readonly TerritoryLookup[];
-  readonly industries: readonly string[];
   readonly countries: readonly CountryLookup[];
 }
