@@ -26,6 +26,44 @@ export const SITE_STATUSES = [
 ] as const;
 export type SiteStatus = (typeof SITE_STATUSES)[number];
 
+/**
+ * Common IANA timezone identifiers grouped by region.
+ * This list covers the markets supported by the platform.
+ * The operating system's Intl API is used for display; these are seed values only.
+ */
+export const COMMON_TIMEZONES = [
+  // GCC / Middle East
+  'Asia/Riyadh',
+  'Asia/Dubai',
+  'Asia/Bahrain',
+  'Asia/Kuwait',
+  'Asia/Muscat',
+  'Asia/Qatar',
+  // Pakistan
+  'Asia/Karachi',
+  // US & Canada
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Toronto',
+  'America/Vancouver',
+  // UK
+  'Europe/London',
+  // Europe
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Europe/Amsterdam',
+  'Europe/Rome',
+  'Europe/Madrid',
+  'Europe/Stockholm',
+  'Europe/Warsaw',
+  // UTC
+  'UTC',
+] as const;
+
+export type CommonTimezone = (typeof COMMON_TIMEZONES)[number] | string;
+
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
 
@@ -46,6 +84,8 @@ export interface Site extends Identifiable, Auditable {
   readonly type: SiteType;
   readonly status: SiteStatus;
   readonly location: Address;
+  /** IANA timezone identifier, e.g. "Asia/Riyadh" or "America/New_York". Used for scheduling field-service visits at international sites. */
+  readonly timezone: string;
   readonly siteContactId: string | null;
   readonly siteManagerId: string | null;
   readonly emergencyContactId: string | null;

@@ -43,6 +43,7 @@ import { ModuleHandoff } from '../../data/module-handoff.service';
 import { SERVICE_PRIORITIES, type ServicePriority } from '../../models/customer.model';
 import { SITE_STATUS_TONE } from '../../models/display';
 import {
+  COMMON_TIMEZONES,
   SITE_STATUSES,
   type SiteListItem,
   type SiteStatus,
@@ -119,6 +120,7 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
       status: this.fb.control<SiteStatus>('Active', Validators.required),
     }),
     location: createAddressGroup(this.fb),
+    timezone: this.fb.control(''),
     operations: this.fb.group({
       siteContactId: this.fb.control(''),
       siteManagerId: this.fb.control(''),
@@ -149,6 +151,7 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
   protected readonly priorityOptions = toOptions(SERVICE_PRIORITIES);
   protected readonly visitTimeOptions = toOptions(VISIT_TIMES);
   protected readonly weekdayOptions = toOptions(WEEKDAYS);
+  protected readonly timezoneOptions = COMMON_TIMEZONES.map((tz) => ({ value: tz, label: tz }));
   protected readonly codeMessages = PATTERN_MESSAGES.code;
   protected readonly statusTone = SITE_STATUS_TONE;
 
@@ -286,6 +289,7 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
       type: v.info.type,
       status: v.info.status,
       location: addressValue(this.form.controls.location),
+      timezone: v.timezone || '',
       siteContactId: v.operations.siteContactId || null,
       siteManagerId: v.operations.siteManagerId || null,
       emergencyContactId: v.operations.emergencyContactId || null,
@@ -309,6 +313,7 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
     this.form.patchValue({
       info: { code: site.code, name: site.name, customerId: site.customerId, type: site.type, status: site.status },
       location: { ...site.location },
+      timezone: site.timezone ?? '',
       operations: {
         siteContactId: site.siteContactId ?? '',
         siteManagerId: site.siteManagerId ?? '',

@@ -36,7 +36,7 @@ export const LOOKUPS_SEED: CustomerLookups = {
     { id: 'PT-45', name: 'Net 45 days' },
     { id: 'PT-60', name: 'Net 60 days' },
   ],
-  currencies: ['SAR', 'AED', 'BHD', 'USD'],
+  currencies: ['SAR', 'AED', 'BHD', 'KWD', 'OMR', 'QAR', 'USD', 'CAD', 'GBP', 'EUR', 'PKR'],
   taxProfiles: [
     { id: 'TAX-STD', name: 'Standard VAT 15%' },
     { id: 'TAX-ZERO', name: 'Zero-Rated' },
@@ -96,6 +96,86 @@ export const LOOKUPS_SEED: CustomerLookups = {
       regions: [
         { name: 'Capital', cities: ['Manama'] },
         { name: 'Muharraq', cities: ['Muharraq'] },
+      ],
+    },
+    {
+      name: 'Kuwait',
+      regions: [
+        { name: 'Capital', cities: ['Kuwait City'] },
+        { name: 'Ahmadi', cities: ['Ahmadi'] },
+      ],
+    },
+    {
+      name: 'Oman',
+      regions: [
+        { name: 'Muscat', cities: ['Muscat', 'Mutrah'] },
+        { name: 'Dhofar', cities: ['Salalah'] },
+      ],
+    },
+    {
+      name: 'Qatar',
+      regions: [
+        { name: 'Doha', cities: ['Doha', 'Al Rayyan'] },
+      ],
+    },
+    {
+      name: 'United States',
+      regions: [
+        { name: 'California', cities: ['Los Angeles', 'San Francisco', 'San Diego'] },
+        { name: 'Texas', cities: ['Houston', 'Dallas', 'Austin'] },
+        { name: 'New York', cities: ['New York City', 'Buffalo', 'Albany'] },
+        { name: 'Florida', cities: ['Miami', 'Orlando', 'Tampa'] },
+        { name: 'Illinois', cities: ['Chicago', 'Aurora', 'Rockford'] },
+      ],
+    },
+    {
+      name: 'Canada',
+      regions: [
+        { name: 'Ontario', cities: ['Toronto', 'Ottawa', 'Mississauga'] },
+        { name: 'British Columbia', cities: ['Vancouver', 'Surrey', 'Burnaby'] },
+        { name: 'Quebec', cities: ['Montreal', 'Quebec City'] },
+        { name: 'Alberta', cities: ['Calgary', 'Edmonton'] },
+      ],
+    },
+    {
+      name: 'United Kingdom',
+      regions: [
+        { name: 'England', cities: ['London', 'Manchester', 'Birmingham', 'Leeds'] },
+        { name: 'Scotland', cities: ['Edinburgh', 'Glasgow'] },
+        { name: 'Wales', cities: ['Cardiff', 'Swansea'] },
+      ],
+    },
+    {
+      name: 'Germany',
+      regions: [
+        { name: 'Bavaria', cities: ['Munich', 'Nuremberg', 'Augsburg'] },
+        { name: 'Berlin', cities: ['Berlin'] },
+        { name: 'North Rhine-Westphalia', cities: ['Cologne', 'Düsseldorf', 'Essen'] },
+      ],
+    },
+    {
+      name: 'France',
+      regions: [
+        { name: 'Île-de-France', cities: ['Paris', 'Versailles'] },
+        { name: 'Auvergne-Rhône-Alpes', cities: ['Lyon', 'Grenoble'] },
+        { name: 'Provence-Alpes-Côte d\'Azur', cities: ['Marseille', 'Nice'] },
+      ],
+    },
+    {
+      name: 'Netherlands',
+      regions: [
+        { name: 'North Holland', cities: ['Amsterdam', 'Haarlem'] },
+        { name: 'South Holland', cities: ['Rotterdam', 'The Hague'] },
+        { name: 'Utrecht', cities: ['Utrecht'] },
+      ],
+    },
+    {
+      name: 'Pakistan',
+      regions: [
+        { name: 'Punjab', cities: ['Lahore', 'Faisalabad', 'Rawalpindi', 'Multan'] },
+        { name: 'Sindh', cities: ['Karachi', 'Hyderabad', 'Sukkur'] },
+        { name: 'Khyber Pakhtunkhwa', cities: ['Peshawar', 'Mardan', 'Abbottabad'] },
+        { name: 'Islamabad Capital Territory', cities: ['Islamabad'] },
       ],
     },
   ],

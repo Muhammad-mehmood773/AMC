@@ -8,10 +8,11 @@ import {
   Validators,
 } from '@angular/forms';
 import type { FieldHelp } from '@shared/ui/field-info';
-import { FormField } from '@shared/ui/form-field';
+import { FormField, type FieldErrorMessages } from '@shared/ui/form-field';
 import { map, startWith, switchMap } from 'rxjs';
 import { CustomerLookupsStore } from '../data/lookups.store';
 import type { Address } from '../models/customer.model';
+import { getCountryConfig } from '../models/country-config';
 import { PATTERNS, PATTERN_MESSAGES } from '../utils/form-patterns';
 import { Select } from '@shared/ui/select';
 
@@ -31,13 +32,13 @@ export type AddressFormGroup = FormGroup<{
 
 export function createAddressGroup(fb: NonNullableFormBuilder): AddressFormGroup {
   return fb.group({
-    country: fb.control('Saudi Arabia', Validators.required),
+    country: fb.control('', Validators.required),
     region: fb.control('', Validators.required),
     city: fb.control('', Validators.required),
     district: fb.control(''),
     street: fb.control(''),
     buildingNumber: fb.control('', Validators.pattern(PATTERNS.buildingNumber)),
-    postalCode: fb.control('', Validators.pattern(PATTERNS.postalCode)),
+    postalCode: fb.control(''),
     additionalNumber: fb.control('', Validators.pattern(PATTERNS.additionalNumber)),
     addressLine: fb.control('', Validators.maxLength(250)),
     latitude: fb.control<number | null>(null, [Validators.min(-90), Validators.max(90)]),
@@ -49,7 +50,9 @@ export function addressValue(group: AddressFormGroup): Address {
   return { ...group.getRawValue() };
 }
 
-/** KSA National Address field set with cascading country → region → city selects. */
+/** Internationally adaptive address field set with cascading country → region → city selects.
+ *  KSA-specific fields (building number, additional number) are shown only when Saudi Arabia
+ *  is selected. Postal code validation and labels adapt to the selected country. */
 @Component({
   selector: 'amc-address-fields',
   imports: [FormField, ReactiveFormsModule, Select],
@@ -57,31 +60,36 @@ export function addressValue(group: AddressFormGroup): Address {
   host: { class: 'block' },
   template: `
     @let g = group();
+    @let cfg = countryCfg();
     <div [formGroup]="g" class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
       <amc-form-field label="Country" [for]="id('country')" [control]="g.controls.country">
         <amc-select [inputId]="id('country')" formControlName="country" [options]="lookups.countryOptions()" (selectionChange)="onCountry()" />
       </amc-form-field>
-      <amc-form-field label="Region" [for]="id('region')" [control]="g.controls.region">
+      <amc-form-field [label]="cfg.address.regionLabel" [for]="id('region')" [control]="g.controls.region">
         <amc-select [inputId]="id('region')" formControlName="region" [options]="regionOptions()" placeholder="Select region…" (selectionChange)="onRegion()" />
       </amc-form-field>
       <amc-form-field label="City" [for]="id('city')" [control]="g.controls.city" [hint]="value().region ? '' : 'Select a region first.'">
         <amc-select [inputId]="id('city')" formControlName="city" [options]="cityOptions()" placeholder="Select city…" />
       </amc-form-field>
-      <amc-form-field label="District" [for]="id('district')" [control]="g.controls.district">
-        <input [id]="id('district')" class="amc-input" formControlName="district" placeholder="e.g. Al Olaya" />
+      <amc-form-field label="District / Neighbourhood" [for]="id('district')" [control]="g.controls.district">
+        <input [id]="id('district')" class="amc-input" formControlName="district" placeholder="District or neighbourhood" />
       </amc-form-field>
       <amc-form-field label="Street" [for]="id('street')" [control]="g.controls.street">
-        <input [id]="id('street')" class="amc-input" formControlName="street" placeholder="e.g. King Fahd Road" />
+        <input [id]="id('street')" class="amc-input" formControlName="street" placeholder="Street name or address line 1" />
       </amc-form-field>
-      <amc-form-field label="Building Number" [for]="id('building')" [control]="g.controls.buildingNumber" [messages]="messages.buildingNumber">
-        <input [id]="id('building')" class="amc-input" formControlName="buildingNumber" inputmode="numeric" maxlength="4" placeholder="4 digits" />
+      @if (cfg.address.showBuildingNumber) {
+        <amc-form-field label="Building Number" [for]="id('building')" [control]="g.controls.buildingNumber" [messages]="messages.buildingNumber">
+          <input [id]="id('building')" class="amc-input" formControlName="buildingNumber" inputmode="numeric" maxlength="4" placeholder="4 digits" />
+        </amc-form-field>
+      }
+      <amc-form-field [label]="cfg.address.postalCodeLabel" [for]="id('postal')" [control]="g.controls.postalCode" [messages]="postalMessages()">
+        <input [id]="id('postal')" class="amc-input" formControlName="postalCode" [attr.inputmode]="postalInputMode()" [placeholder]="cfg.address.postalCodePlaceholder" />
       </amc-form-field>
-      <amc-form-field label="Postal Code" [for]="id('postal')" [control]="g.controls.postalCode" [messages]="messages.postalCode">
-        <input [id]="id('postal')" class="amc-input" formControlName="postalCode" inputmode="numeric" maxlength="5" placeholder="5 digits" />
-      </amc-form-field>
-      <amc-form-field label="Additional Number" [for]="id('additional')" [control]="g.controls.additionalNumber" [messages]="messages.additionalNumber" [help]="additionalNumberHelp">
-        <input [id]="id('additional')" class="amc-input" formControlName="additionalNumber" inputmode="numeric" maxlength="4" placeholder="4 digits" />
-      </amc-form-field>
+      @if (cfg.address.showAdditionalNumber) {
+        <amc-form-field label="Additional Number" [for]="id('additional')" [control]="g.controls.additionalNumber" [messages]="messages.additionalNumber" [help]="additionalNumberHelp">
+          <input [id]="id('additional')" class="amc-input" formControlName="additionalNumber" inputmode="numeric" maxlength="4" placeholder="4 digits" />
+        </amc-form-field>
+      }
       <div class="grid grid-cols-2 gap-3">
         <amc-form-field label="Latitude" [for]="id('lat')" [control]="g.controls.latitude">
           <input [id]="id('lat')" type="number" step="0.000001" class="amc-input" formControlName="latitude" placeholder="24.7136" />
@@ -124,15 +132,45 @@ export class AddressFields {
     this.lookups.cityOptions(this.value().country, this.value().region),
   );
 
+  /** Country-specific configuration computed from the selected country. */
+  protected readonly countryCfg = computed(() => getCountryConfig(this.value().country));
+
+  /** Postal code error messages adapt to the selected country. */
+  protected readonly postalMessages = computed((): FieldErrorMessages => {
+    const cfg = this.countryCfg();
+    if (!cfg.address.postalCodePattern) return {};
+    return { pattern: `Enter a valid ${cfg.address.postalCodeLabel.toLowerCase()}.` };
+  });
+
+  /** Use numeric inputmode for purely numeric postal codes, text otherwise. */
+  protected readonly postalInputMode = computed(() => {
+    const placeholder = this.countryCfg().address.postalCodePlaceholder;
+    return /^\d/.test(placeholder) ? 'numeric' : 'text';
+  });
+
   protected id(name: string): string {
     return `${this.idPrefix()}-${name}`;
   }
 
   protected onCountry(): void {
-    this.group().patchValue({ region: '', city: '' });
+    const g = this.group();
+    g.patchValue({ region: '', city: '' });
+    // Re-apply country-specific postal code validation when country changes.
+    this.applyPostalValidator();
   }
 
   protected onRegion(): void {
     this.group().controls.city.setValue('');
+  }
+
+  private applyPostalValidator(): void {
+    const ctrl = this.group().controls.postalCode;
+    const pattern = this.countryCfg().address.postalCodePattern;
+    if (pattern) {
+      ctrl.setValidators([Validators.pattern(pattern)]);
+    } else {
+      ctrl.clearValidators();
+    }
+    ctrl.updateValueAndValidity();
   }
 }

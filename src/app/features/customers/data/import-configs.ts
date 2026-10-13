@@ -90,7 +90,7 @@ function addressColumns(ctx: ImportContext, fullAddressLabel = 'Address'): Impor
     { key: 'district', label: 'District' },
     { key: 'street', label: 'Street' },
     { key: 'buildingNumber', label: 'Building Number', validate: pattern(PATTERNS.buildingNumber, 'Building number must be 4 digits') },
-    { key: 'postalCode', label: 'Postal Code', validate: pattern(PATTERNS.postalCode, 'Postal code must be 5 digits') },
+    { key: 'postalCode', label: 'Postal Code' },
     { key: 'additionalNumber', label: 'Additional Number', validate: pattern(PATTERNS.additionalNumber, 'Additional number must be 4 digits') },
     { key: 'addressLine', label: fullAddressLabel, aliases: ['Full Address', 'Address Line'] },
   ];
@@ -329,6 +329,7 @@ export function siteImportConfig(ctx: ImportContext, api: SiteApi): ImportConfig
             siteInstructions: v['siteInstructions'],
             technicianInstructions: v['technicianInstructions'],
             internalNotes: '',
+            timezone: '',
           };
           return { row, input };
         }),

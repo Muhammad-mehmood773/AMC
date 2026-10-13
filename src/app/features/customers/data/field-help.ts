@@ -27,16 +27,24 @@ export const CUSTOMER_FIELD_HELP = {
     ],
   },
   crNumber: {
-    title: 'Commercial Registration',
-    lines: ['The 10-digit CR number issued by the Ministry of Commerce.', 'Also used to detect possible duplicate customers.'],
+    title: 'Business Registration Number',
+    lines: [
+      'The official business registration or commercial licence number for this customer.',
+      'The label and format adapt to the country selected in the primary address.',
+      'Also used to detect possible duplicate customers.',
+    ],
   },
   vatNumber: {
-    title: 'VAT / Tax Registration Number',
-    lines: ['15-digit ZATCA number printed on tax invoices; starts and ends with 3.', 'Also used to detect possible duplicate customers.'],
+    title: 'Tax / VAT Registration Number',
+    lines: [
+      'The official tax or VAT registration number used on invoices.',
+      'The label and format adapt to the country selected in the primary address.',
+      'Also used to detect possible duplicate customers.',
+    ],
   },
   nationalAddress: {
     title: 'National Address Reference',
-    lines: ['The 8-character short address (4 letters + 4 digits) from the Saudi National Address.'],
+    lines: ['The 8-character short address (4 letters + 4 digits) from the Saudi National Address system.'],
   },
   accountManager: 'The employee responsible for the commercial relationship.\nReceives escalations for this customer.',
   creditLimit: 'Maximum outstanding receivable allowed for this customer.\nLeave empty when no limit applies.',

@@ -66,6 +66,7 @@ import {
   type ServicePriority,
   type ServiceWindow,
 } from '../../models/customer.model';
+import { getCountryConfig } from '../../models/country-config';
 import { CUSTOMER_STATUS_TONE } from '../../models/display';
 import { PATTERNS, PATTERN_MESSAGES, splitName } from '../../utils/form-patterns';
 import { LookupSelect } from '@shared/ui/lookup-select';
@@ -161,7 +162,7 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
       accountManagerId: this.fb.control('', Validators.required),
       salesRepId: this.fb.control(''),
       paymentTermsId: this.fb.control('PT-30', Validators.required),
-      currency: this.fb.control('SAR', Validators.required),
+      currency: this.fb.control('', Validators.required),
       creditLimit: this.fb.control<number | null>(null, Validators.min(0)),
       taxProfileId: this.fb.control('TAX-STD'),
       priceListId: this.fb.control('PL-STD'),
@@ -212,6 +213,8 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
   protected readonly territoryOptions = computed(() =>
     this.lookups.territoryOptions(this.value().operational.serviceRegion || null),
   );
+  /** Country-specific config derived from the primary address country selection. */
+  protected readonly countryCfg = computed(() => getCountryConfig(this.value().address.country));
 
   protected readonly existing = rxResource({
     params: () => this.customerId(),
@@ -234,6 +237,18 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
     basic.companyId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => basic.branchId.setValue(''));
     const op = this.form.controls.operational.controls;
     op.serviceRegion.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => op.serviceTerritoryId.setValue(''));
+
+    // Apply country-specific validation to legal fields whenever the address country changes.
+    effect(() => {
+      const cfg = this.countryCfg();
+      const legal = this.form.controls.legal.controls;
+      legal.crNumber.setValidators(cfg.business.primaryId?.pattern ? [Validators.pattern(cfg.business.primaryId.pattern)] : []);
+      legal.vatNumber.setValidators(cfg.business.taxId?.pattern ? [Validators.pattern(cfg.business.taxId.pattern)] : []);
+      legal.nationalAddressRef.setValidators(cfg.business.showNationalAddress ? [Validators.pattern(PATTERNS.nationalAddress)] : []);
+      legal.crNumber.updateValueAndValidity({ emitEvent: false });
+      legal.vatNumber.updateValueAndValidity({ emitEvent: false });
+      legal.nationalAddressRef.updateValueAndValidity({ emitEvent: false });
+    });
 
     // Live duplicate detection on identifying fields.
     this.form.valueChanges

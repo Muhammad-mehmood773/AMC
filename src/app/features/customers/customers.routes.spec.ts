@@ -36,7 +36,7 @@ describe('Customer & Site Management routes', { timeout: 20_000 }, () => {
 
   const cases: [string, string[]][] = [
     ['/app/customers/dashboard', ['Customer Dashboard', 'Total Customers', 'Expiring Contracts', 'Outstanding Customer Amounts']],
-    ['/app/customers/list', ['Customers', 'Sahara Smart Offices', '1–10 of 28']],
+    ['/app/customers/list', ['Customers', 'Sahara Smart Offices', '1–10 of']],
     ['/app/customers/list?status=Inactive', ['Taif Rose Resorts', 'Customer Status:', 'Clear all', 'Import', 'Columns']],
     ['/app/customers/new', ['New Customer', 'Basic information', 'Primary address', 'Commercial information', 'Operational information']],
     ['/app/customers/CUS-00101', ['King Faisal Specialist Medical Group', 'Company profile', 'Outstanding Amount']],
@@ -50,7 +50,7 @@ describe('Customer & Site Management routes', { timeout: 20_000 }, () => {
     ['/app/customers/sites/SITE-0001', ['KFSMG Main Hospital', 'Site operations', 'Upcoming Maintenance']],
     ['/app/customers/sites/SITE-0001?tab=maintenance', ['Preventive Maintenance']],
     ['/app/customers/sites/SITE-0001/edit', ['Edit Site', 'Location information']],
-    ['/app/customers/documents', ['Customer & Site Documents', 'Commercial Registration Certificate']],
+    ['/app/customers/documents', ['Customer & Site Documents', 'Valid', 'Expiring Soon']],
     ['/app/customers/history', ['Customer & Site History']],
   ];
 

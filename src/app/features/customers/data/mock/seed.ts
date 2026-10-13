@@ -81,6 +81,10 @@ const BLUEPRINTS: readonly CustomerBlueprint[] = [
   { name: 'Tamimi Retail Group', short: 'Tamimi Retail', type: 'Corporate', category: 'Commercial', status: 'Active', industry: 'Retail', country: 'Saudi Arabia', region: 'Eastern Province', city: 'Dammam', district: 'Al Faisaliyah', createdDaysAgo: 690, sites: 5 },
   { name: 'Abdullah Al-Saud Villa Compound', short: 'Al-Saud Compound', type: 'Individual', category: 'Residential', status: 'Active', industry: 'Real Estate', country: 'Saudi Arabia', region: 'Riyadh', city: 'Diriyah', district: 'Al Bujairi', createdDaysAgo: 140, sites: 1 },
   { name: 'Emirates Integrated Partners', short: 'EIP', type: 'Partner', category: 'Enterprise', status: 'Active', industry: 'Telecommunications', country: 'United Arab Emirates', region: 'Dubai', city: 'Dubai', district: 'Business Bay', createdDaysAgo: 62, sites: 2 },
+  { name: 'Apex Facilities Management UK', short: 'Apex UK', type: 'Corporate', category: 'Commercial', status: 'Active', industry: 'Real Estate', country: 'United Kingdom', region: 'England', city: 'London', district: 'City of London', createdDaysAgo: 55, sites: 2 },
+  { name: 'Steinberg Industrial Systems GmbH', short: 'Steinberg', type: 'Corporate', category: 'Industrial', status: 'Active', industry: 'Manufacturing', country: 'Germany', region: 'Bavaria', city: 'Munich', district: 'Maxvorstadt', createdDaysAgo: 40, sites: 1 },
+  { name: 'NovaTech Healthcare USA', short: 'NovaTech', type: 'Corporate', category: 'Healthcare', status: 'Active', industry: 'Healthcare', country: 'United States', region: 'Texas', city: 'Houston', district: 'Medical Center', createdDaysAgo: 48, sites: 2 },
+  { name: 'Karachi Logistics Hub', short: 'KLH', type: 'SME', category: 'Industrial', status: 'Active', industry: 'Logistics', country: 'Pakistan', region: 'Sindh', city: 'Karachi', district: 'SITE Industrial Area', createdDaysAgo: 30, sites: 1 },
   { name: 'National Commercial Bank – Branch Network', short: 'NCB Branches', type: 'Corporate', category: 'Enterprise', status: 'Active', industry: 'Banking & Finance', country: 'Saudi Arabia', region: 'Riyadh', city: 'Riyadh', district: 'Al Murabba', createdDaysAgo: 900, sites: 5 },
   { name: 'Taif Rose Resorts', short: 'Taif Rose', type: 'SME', category: 'Hospitality', status: 'Inactive', industry: 'Hospitality', country: 'Saudi Arabia', region: 'Makkah', city: 'Taif', district: 'Al Hada', createdDaysAgo: 760, sites: 1 },
   { name: 'Yanbu Desalination Services', short: 'Yanbu Desal', type: 'Government', category: 'Industrial', status: 'Active', industry: 'Government Services', country: 'Saudi Arabia', region: 'Madinah', city: 'Yanbu', district: 'Royal Commission', createdDaysAgo: 340, sites: 2 },
@@ -173,11 +177,37 @@ function slug(short: string): string {
   return short.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 14);
 }
 
+const INTL_STREETS: Record<string, readonly string[]> = {
+  'United States': ['Main Street', 'Oak Avenue', 'Park Boulevard', '5th Avenue', 'Market Street'],
+  'Canada': ['Yonge Street', 'Granville Street', 'Robson Street', 'King Street', 'Queen Street'],
+  'United Kingdom': ['High Street', 'Victoria Road', 'Church Lane', 'Station Road', 'London Road'],
+  'Germany': ['Hauptstraße', 'Bahnhofstraße', 'Goethestraße', 'Schillerstraße', 'Friedrichstraße'],
+  'France': ['Rue de la Paix', 'Avenue des Champs-Élysées', 'Boulevard Haussmann', 'Rue du Faubourg'],
+  'Netherlands': ['Keizersgracht', 'Prinsengracht', 'Herengracht', 'Damrak', 'Kalverstraat'],
+  'Pakistan': ['M.A. Jinnah Road', 'Mall Road', 'Shahrah-e-Faisal', 'Clifton Road', 'Gulberg Main Boulevard'],
+};
+const GCC_COUNTRIES = new Set(['United Arab Emirates', 'Bahrain', 'Kuwait', 'Oman', 'Qatar']);
+
 function makeAddress(rng: Random, country: string, region: string, city: string, district: string): Address {
   const sa = country === 'Saudi Arabia';
-  const street = rng.pick(['King Fahd Road', 'Prince Sultan Street', 'Olaya Street', 'King Abdulaziz Road', 'Prince Mohammed bin Abdulaziz Road', 'Al Madinah Road', 'Corniche Road']);
-  const building = rng.digits(4);
-  const postal = sa ? `${rng.int(1, 3)}${rng.digits(4)}` : rng.digits(5);
+  const gcc = GCC_COUNTRIES.has(country);
+  const intlStreets = INTL_STREETS[country];
+  const street = intlStreets
+    ? rng.pick(intlStreets)
+    : rng.pick(['King Fahd Road', 'Prince Sultan Street', 'Corniche Road', 'Commerce Street', 'Central Road']);
+  const building = sa ? rng.digits(4) : '';
+  let postalCode: string;
+  if (sa) {
+    postalCode = `${rng.int(1, 3)}${rng.digits(4)}`;
+  } else if (country === 'United Kingdom') {
+    const letters = 'ABCDEFGHJKLMNPRSTUVWXY';
+    postalCode = `${rng.pick(letters.split(''))}${rng.pick(letters.split(''))}${rng.int(1, 9)} ${rng.int(1, 9)}${rng.pick(['AA', 'AB', 'BC', 'CD', 'DE'])}`;
+  } else if (country === 'Canada') {
+    postalCode = `M${rng.int(1, 9)}V ${rng.int(1, 9)}L${rng.int(1, 9)}`;
+  } else {
+    postalCode = rng.digits(5);
+  }
+  const streetDisplay = intlStreets ? `${rng.int(1, 999)} ${street}` : `${building} ${street}`;
   return {
     country,
     region,
@@ -185,12 +215,36 @@ function makeAddress(rng: Random, country: string, region: string, city: string,
     district,
     street,
     buildingNumber: building,
-    postalCode: postal,
+    postalCode,
     additionalNumber: sa ? rng.digits(4) : '',
-    addressLine: `${building} ${street}, ${district}, ${city}`,
-    latitude: Number((sa ? 21 + rng.next() * 6 : 25 + rng.next()).toFixed(6)),
-    longitude: Number((sa ? 39 + rng.next() * 11 : 50 + rng.next() * 5).toFixed(6)),
+    addressLine: `${streetDisplay}, ${district || city}, ${city}`,
+    latitude: Number(
+      (sa ? 21 + rng.next() * 6 : gcc ? 23 + rng.next() * 4 : country === 'United Kingdom' ? 51 + rng.next() * 3 : country === 'Pakistan' ? 24 + rng.next() * 7 : 40 + rng.next() * 10).toFixed(6),
+    ),
+    longitude: Number(
+      (sa ? 39 + rng.next() * 11 : gcc ? 50 + rng.next() * 6 : country === 'United Kingdom' ? -3 + rng.next() * 4 : country === 'Pakistan' ? 66 + rng.next() * 8 : -10 + rng.next() * 40).toFixed(6),
+    ),
   };
+}
+
+/** Returns a representative IANA timezone for the given country. */
+function countryTimezone(country: string): string {
+  const map: Record<string, string> = {
+    'Saudi Arabia': 'Asia/Riyadh',
+    'United Arab Emirates': 'Asia/Dubai',
+    'Bahrain': 'Asia/Bahrain',
+    'Kuwait': 'Asia/Kuwait',
+    'Oman': 'Asia/Muscat',
+    'Qatar': 'Asia/Qatar',
+    'United States': 'America/New_York',
+    'Canada': 'America/Toronto',
+    'United Kingdom': 'Europe/London',
+    'Germany': 'Europe/Berlin',
+    'France': 'Europe/Paris',
+    'Netherlands': 'Europe/Amsterdam',
+    'Pakistan': 'Asia/Karachi',
+  };
+  return map[country] ?? 'UTC';
 }
 
 function audit(createdAt: string, user = 'Ahmed Al-Harbi') {
@@ -259,6 +313,22 @@ export function buildSeed(): MockDatabase {
     });
   };
 
+  const COUNTRY_PHONE_PREFIX: Record<string, string> = {
+    'Saudi Arabia': '+966',
+    'United Arab Emirates': '+971',
+    'Bahrain': '+973',
+    'Kuwait': '+965',
+    'Oman': '+968',
+    'Qatar': '+974',
+    'United Kingdom': '+44',
+    'Germany': '+49',
+    'France': '+33',
+    'Netherlands': '+31',
+    'United States': '+1',
+    'Canada': '+1',
+    'Pakistan': '+92',
+  };
+
   const makeContact = (
     customerId: string,
     siteId: string | null,
@@ -266,10 +336,13 @@ export function buildSeed(): MockDatabase {
     isPrimary: boolean,
     domain: string,
     createdAt: string,
+    country = 'Saudi Arabia',
     status: 'Active' | 'Inactive' = 'Active',
   ): Contact => {
     const firstName = rng.pick(FIRST_NAMES);
     const lastName = rng.pick(LAST_NAMES);
+    const prefix = COUNTRY_PHONE_PREFIX[country] ?? '+966';
+    const isSa = country === 'Saudi Arabia';
     const contact: Contact = {
       id: `CON-${pad(contactSeq++, 4)}`,
       customerId,
@@ -279,8 +352,8 @@ export function buildSeed(): MockDatabase {
       designation: rng.pick(DESIGNATIONS[type]),
       department: rng.pick(DEPARTMENTS[type]),
       email: `${firstName[0].toLowerCase()}.${lastName.toLowerCase().replace(/^al-/, '').replace(/[^a-z]/g, '')}@${domain}`,
-      mobile: `+966 5${rng.int(0, 9)} ${rng.digits(3)} ${rng.digits(4)}`,
-      phone: rng.chance(0.7) ? `+966 1${rng.int(1, 7)} ${rng.digits(3)} ${rng.digits(4)}` : '',
+      mobile: isSa ? `${prefix} 5${rng.int(0, 9)} ${rng.digits(3)} ${rng.digits(4)}` : `${prefix} ${rng.digits(3)} ${rng.digits(3)} ${rng.digits(4)}`,
+      phone: rng.chance(0.7) ? (isSa ? `${prefix} 1${rng.int(1, 7)} ${rng.digits(3)} ${rng.digits(4)}` : `${prefix} ${rng.digits(2)} ${rng.digits(4)} ${rng.digits(4)}`) : '',
       preferredLanguage: rng.pick<PreferredLanguage>(['English', 'Arabic', 'Arabic', 'English']),
       preferredCommunication: rng.pick<CommunicationMethod>(['Email', 'Mobile', 'Email', 'WhatsApp', 'Phone']),
       type,
@@ -296,22 +369,25 @@ export function buildSeed(): MockDatabase {
   BLUEPRINTS.forEach((bp, index) => {
     const id = `CUS-${pad(CODE_BASE + index + 1, 5)}`;
     const createdAt = daysFromNow(-bp.createdDaysAgo, 9 + (index % 8));
-    const domain = `${slug(bp.short)}.com.sa`;
+    const tldMap: Record<string, string> = { 'Saudi Arabia': 'com.sa', 'United Arab Emirates': 'ae', 'Bahrain': 'bh', 'Kuwait': 'kw', 'Oman': 'om', 'Qatar': 'qa', 'United Kingdom': 'co.uk', 'Germany': 'de', 'France': 'fr', 'Netherlands': 'nl', 'Pakistan': 'com.pk', 'United States': 'com', 'Canada': 'ca' };
+    const tld = tldMap[bp.country] ?? 'com';
+    const domain = `${slug(bp.short)}.${tld}`;
     const company = lookups.companies[index % 3 === 2 ? 1 : 0];
     const branches = lookups.branches.filter((b) => b.companyId === company.id);
     const am = lookups.accountManagers[index % lookups.accountManagers.length];
     const sla = bp.type === 'Government' || bp.category === 'Healthcare' ? 'SLA-PLT' : rng.pick(['SLA-GLD', 'SLA-SLV', 'SLA-BRZ']);
+    const GCC_COUNTRIES_SEED = new Set(['United Arab Emirates', 'Bahrain', 'Kuwait', 'Oman', 'Qatar']);
     const region = bp.country === 'Saudi Arabia'
       ? ({ Riyadh: 'Central', Qassim: 'Central', Makkah: 'Western', Madinah: 'Western', 'Eastern Province': 'Eastern', Asir: 'Southern' } as Record<string, string>)[bp.region] ?? 'Central'
-      : 'GCC';
+      : GCC_COUNTRIES_SEED.has(bp.country) ? 'GCC' : 'GCC';
     const territory = lookups.territories.find((t) => t.region === region) ?? lookups.territories[0];
     const inactive = bp.status === 'Inactive' || bp.status === 'Archived';
 
-    const primary = makeContact(id, null, 'Primary', true, domain, createdAt);
-    makeContact(id, null, 'Billing', true, domain, createdAt);
-    if (rng.chance(0.75)) makeContact(id, null, 'Technical', true, domain, createdAt);
-    if (rng.chance(0.5)) makeContact(id, null, 'Procurement', true, domain, createdAt);
-    if (rng.chance(0.35)) makeContact(id, null, 'Management', true, domain, createdAt, rng.chance(0.2) ? 'Inactive' : 'Active');
+    const primary = makeContact(id, null, 'Primary', true, domain, createdAt, bp.country);
+    makeContact(id, null, 'Billing', true, domain, createdAt, bp.country);
+    if (rng.chance(0.75)) makeContact(id, null, 'Technical', true, domain, createdAt, bp.country);
+    if (rng.chance(0.5)) makeContact(id, null, 'Procurement', true, domain, createdAt, bp.country);
+    if (rng.chance(0.35)) makeContact(id, null, 'Management', true, domain, createdAt, bp.country, rng.chance(0.2) ? 'Inactive' : 'Active');
 
     const customer: Customer = {
       id,
@@ -321,8 +397,8 @@ export function buildSeed(): MockDatabase {
       type: bp.type,
       category: bp.category,
       status: bp.status,
-      crNumber: bp.type === 'Individual' ? '' : `${rng.int(1, 4)}0${rng.digits(8)}`,
-      vatNumber: bp.type === 'Individual' ? '' : `3${rng.digits(13)}3`,
+      crNumber: bp.type === 'Individual' ? '' : bp.country === 'Saudi Arabia' ? `${rng.int(1, 4)}0${rng.digits(8)}` : `REG-${rng.digits(8)}`,
+      vatNumber: bp.type === 'Individual' ? '' : bp.country === 'Saudi Arabia' ? `3${rng.digits(13)}3` : bp.country === 'United Kingdom' ? `GB${rng.digits(9)}` : bp.country === 'Germany' ? `DE${rng.digits(9)}` : `VAT-${rng.digits(9)}`,
       nationalAddressRef: bp.country === 'Saudi Arabia' ? `${String.fromCharCode(65 + rng.int(0, 25))}${String.fromCharCode(65 + rng.int(0, 25))}${String.fromCharCode(65 + rng.int(0, 25))}${String.fromCharCode(65 + rng.int(0, 25))}${rng.digits(4)}` : '',
       industry: bp.industry,
       registrationDate: bp.type === 'Individual' ? null : dateFromNow(-bp.createdDaysAgo - rng.int(800, 6000)),
@@ -332,9 +408,9 @@ export function buildSeed(): MockDatabase {
         accountManagerId: am.id,
         salesRepId: rng.pick(lookups.salesReps).id,
         paymentTermsId: bp.type === 'Government' ? 'PT-60' : rng.pick(['PT-15', 'PT-30', 'PT-30', 'PT-45']),
-        currency: bp.country === 'United Arab Emirates' ? 'AED' : bp.country === 'Bahrain' ? 'BHD' : 'SAR',
+        currency: ({ 'United Arab Emirates': 'AED', 'Bahrain': 'BHD', 'Kuwait': 'KWD', 'Oman': 'OMR', 'Qatar': 'QAR', 'United Kingdom': 'GBP', 'Germany': 'EUR', 'France': 'EUR', 'Netherlands': 'EUR', 'United States': 'USD', 'Canada': 'CAD', 'Pakistan': 'PKR' } as Record<string, string>)[bp.country] ?? 'SAR',
         creditLimit: bp.type === 'Individual' ? 50000 : rng.int(5, 80) * 25000,
-        taxProfileId: bp.country === 'Saudi Arabia' ? 'TAX-STD' : 'TAX-ZERO',
+        taxProfileId: bp.country === 'Saudi Arabia' ? 'TAX-STD' : bp.country === 'United Kingdom' || bp.country === 'Germany' || bp.country === 'France' || bp.country === 'Netherlands' ? 'TAX-STD' : 'TAX-ZERO',
         priceListId: bp.type === 'Government' ? 'PL-GOV' : bp.type === 'Partner' ? 'PL-PRT' : bp.category === 'Enterprise' || bp.type === 'Corporate' ? 'PL-ENT' : 'PL-STD',
         billingCycle: rng.pick<BillingCycle>(['Monthly', 'Quarterly', 'Quarterly', 'Annual']),
       },
@@ -386,9 +462,9 @@ export function buildSeed(): MockDatabase {
         : s === bp.sites - 1 && bp.sites > 2 && rng.chance(0.5)
           ? rng.pick<SiteStatus>(['Planned', 'Temporarily Closed'])
           : 'Active';
-      const siteContact = makeContact(id, siteId, 'Site Contact', true, domain, siteCreatedAt);
-      const emergency = rng.chance(0.6) ? makeContact(id, siteId, 'Emergency', true, domain, siteCreatedAt) : null;
-      const siteManager = rng.chance(0.5) ? makeContact(id, siteId, 'Management', false, domain, siteCreatedAt) : siteContact;
+      const siteContact = makeContact(id, siteId, 'Site Contact', true, domain, siteCreatedAt, bp.country);
+      const emergency = rng.chance(0.6) ? makeContact(id, siteId, 'Emergency', true, domain, siteCreatedAt, bp.country) : null;
+      const siteManager = rng.chance(0.5) ? makeContact(id, siteId, 'Management', false, domain, siteCreatedAt, bp.country) : siteContact;
       const suffix = SITE_SUFFIX[type][s % SITE_SUFFIX[type].length];
       const site: Site = {
         id: siteId,
@@ -398,21 +474,22 @@ export function buildSeed(): MockDatabase {
         type,
         status,
         location: makeAddress(rng, bp.country, bp.region, city, district),
+        timezone: countryTimezone(bp.country),
         siteContactId: siteContact.id,
         siteManagerId: siteManager.id,
         emergencyContactId: emergency?.id ?? null,
-        operatingHours: type === 'Hospital' || type === 'Hotel' ? '24/7' : 'Sun–Thu 08:00–17:00',
-        serviceHours: type === 'Hospital' ? '24/7 (critical systems)' : 'Sun–Thu 07:00–19:00, Sat 08:00–14:00',
-        accessRequirements: rng.pick(['Gate pass required; present Iqama/ID at reception.', 'Escort required in clinical and restricted areas.', 'PPE mandatory: helmet, safety shoes, hi-vis vest.', 'Access via service entrance on the north side.']),
+        operatingHours: type === 'Hospital' || type === 'Hotel' ? '24/7' : bp.country === 'Saudi Arabia' ? 'Sun–Thu 08:00–17:00' : 'Mon–Fri 08:00–17:00',
+        serviceHours: type === 'Hospital' ? '24/7 (critical systems)' : bp.country === 'Saudi Arabia' ? 'Sun–Thu 07:00–19:00, Sat 08:00–14:00' : 'Mon–Fri 07:00–19:00',
+        accessRequirements: rng.pick(['Visitor pass required at reception.', 'Escort required in restricted areas.', 'PPE mandatory: helmet, safety shoes, hi-vis vest.', 'Access via service entrance.', '']),
         securityRequirements: rng.pick(['Background-checked technicians only.', 'Tools inventory checked at entry and exit.', 'No photography inside the premises.', '']),
         defaultSlaId: customer.operational.defaultSlaId,
         serviceTerritoryId: territory.id,
         servicePriority: customer.operational.servicePriority,
-        preferredVisitDays: rng.pick<readonly Weekday[]>([['Sun', 'Mon', 'Tue', 'Wed', 'Thu'], ['Sat', 'Sun'], ['Mon', 'Wed'], ['Sun', 'Tue', 'Thu']]),
+        preferredVisitDays: rng.pick<readonly Weekday[]>([['Sun', 'Mon', 'Tue', 'Wed', 'Thu'], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], ['Mon', 'Wed'], ['Tue', 'Thu']]),
         preferredVisitTime: rng.pick<VisitTime>(['Morning (09:00–12:00)', 'Early Morning (06:00–09:00)', 'Afternoon (12:00–16:00)', 'Any Time']),
         accessNoticeRequired: rng.chance(0.6),
         siteInstructions: 'Report to the facility office on arrival and sign the visitor register.',
-        technicianInstructions: rng.pick(['Isolate equipment via the BMS before starting work.', 'Coordinate with the duty engineer for any shutdown.', 'Permit-to-work required for hot work and roof access.']),
+        technicianInstructions: rng.pick(['Isolate equipment before starting work.', 'Coordinate with the duty engineer for any shutdown.', 'Permit-to-work required for hot work and roof access.', '']),
         internalNotes: '',
         ...audit(siteCreatedAt),
       };

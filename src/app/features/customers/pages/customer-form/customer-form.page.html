@@ -135,7 +135,7 @@
                 id="cf-name"
                 class="amc-input"
                 formControlName="name"
-                placeholder="e.g. King Faisal Specialist Medical Group"
+                placeholder="e.g. Acme Corporation"
                 (blur)="copyLegalName()"
               />
             </amc-form-field>
@@ -174,6 +174,7 @@
 
         <!-- B. Legal & registration -->
         @let l = form.controls.legal;
+        @let legalCfg = countryCfg().business;
         <amc-panel
           id="section-legal"
           class="scroll-mt-24"
@@ -183,15 +184,49 @@
           formGroupName="legal"
         >
           <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-            <amc-form-field label="Commercial Registration (CR) Number" for="cf-cr" [control]="l.controls.crNumber" [help]="help.crNumber" [messages]="patternMessages.crNumber" hint="10 digits">
-              <input id="cf-cr" class="amc-input font-mono" formControlName="crNumber" inputmode="numeric" maxlength="10" placeholder="1010123456" />
-            </amc-form-field>
-            <amc-form-field label="VAT / Tax Registration Number" for="cf-vat" [control]="l.controls.vatNumber" [help]="help.vatNumber" [messages]="patternMessages.vatNumber" hint="15 digits, starts and ends with 3">
-              <input id="cf-vat" class="amc-input font-mono" formControlName="vatNumber" inputmode="numeric" maxlength="15" placeholder="300000000000003" />
-            </amc-form-field>
-            <amc-form-field label="National Address Reference" for="cf-nat" [control]="l.controls.nationalAddressRef" [help]="help.nationalAddress" [messages]="patternMessages.nationalAddress" hint="Short address, e.g. RRRD2929">
-              <input id="cf-nat" class="amc-input font-mono uppercase" formControlName="nationalAddressRef" maxlength="8" />
-            </amc-form-field>
+            @if (legalCfg.primaryId) {
+              <amc-form-field
+                [label]="legalCfg.primaryId.label"
+                for="cf-cr"
+                [control]="l.controls.crNumber"
+                [help]="help.crNumber"
+                [messages]="patternMessages.crNumber"
+                [hint]="legalCfg.primaryId.hint"
+              >
+                <input
+                  id="cf-cr"
+                  class="amc-input font-mono"
+                  formControlName="crNumber"
+                  [attr.inputmode]="legalCfg.primaryId.inputMode"
+                  [maxlength]="legalCfg.primaryId.maxLength"
+                  [placeholder]="legalCfg.primaryId.placeholder"
+                />
+              </amc-form-field>
+            }
+            @if (legalCfg.taxId) {
+              <amc-form-field
+                [label]="legalCfg.taxId.label"
+                for="cf-vat"
+                [control]="l.controls.vatNumber"
+                [help]="help.vatNumber"
+                [messages]="patternMessages.vatNumber"
+                [hint]="legalCfg.taxId.hint"
+              >
+                <input
+                  id="cf-vat"
+                  class="amc-input font-mono"
+                  formControlName="vatNumber"
+                  [attr.inputmode]="legalCfg.taxId.inputMode"
+                  [maxlength]="legalCfg.taxId.maxLength"
+                  [placeholder]="legalCfg.taxId.placeholder"
+                />
+              </amc-form-field>
+            }
+            @if (legalCfg.showNationalAddress) {
+              <amc-form-field label="National Address Reference" for="cf-nat" [control]="l.controls.nationalAddressRef" [help]="help.nationalAddress" [messages]="patternMessages.nationalAddress" hint="Short address, e.g. RRRD2929">
+                <input id="cf-nat" class="amc-input font-mono uppercase" formControlName="nationalAddressRef" maxlength="8" />
+              </amc-form-field>
+            }
             <amc-form-field label="Industry" for="cf-industry" [control]="l.controls.industry">
               <amc-lookup-select inputId="cf-industry" formControlName="industry" [type]="lookupTypes.industry" [clearable]="true" />
             </amc-form-field>
@@ -236,10 +271,10 @@
               <input id="cf-email" type="email" class="amc-input" formControlName="email" placeholder="name@company.com" autocomplete="email" />
             </amc-form-field>
             <amc-form-field label="Mobile" for="cf-mobile" [control]="c.controls.mobile" [messages]="patternMessages.phone">
-              <input id="cf-mobile" type="tel" class="amc-input" formControlName="mobile" placeholder="+966 5X XXX XXXX" autocomplete="tel" />
+              <input id="cf-mobile" type="tel" class="amc-input" formControlName="mobile" placeholder="+1 555 123 4567" autocomplete="tel" />
             </amc-form-field>
             <amc-form-field label="Phone" for="cf-phone" [control]="c.controls.phone" [messages]="patternMessages.phone">
-              <input id="cf-phone" type="tel" class="amc-input" formControlName="phone" placeholder="+966 11 XXX XXXX" />
+              <input id="cf-phone" type="tel" class="amc-input" formControlName="phone" placeholder="+44 20 7946 0958" />
             </amc-form-field>
             <amc-form-field label="Preferred Communication Method" for="cf-comm" [control]="c.controls.preferredCommunication" [help]="help.communication">
               <amc-lookup-select inputId="cf-comm" formControlName="preferredCommunication" [type]="lookupTypes.communicationMethod" />
