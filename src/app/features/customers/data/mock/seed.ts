@@ -422,6 +422,7 @@ export function buildSeed(): MockDatabase {
         preferredServiceWindow: rng.pick<ServiceWindow>(bp.category === 'Healthcare' ? ['24/7'] : ['Business Hours (08:00–17:00)', 'Extended Hours (07:00–22:00)', 'After Hours (18:00–06:00)']),
         portalAccess: !inactive && rng.chance(0.6),
       },
+      logoUrl: null,
       internalNotes: rng.chance(0.5) ? 'Key account — escalate critical incidents to the account manager within 30 minutes.' : '',
       customerNotes: rng.chance(0.4) ? 'Visitors must register at the security gate 24 hours in advance.' : '',
       companyId: company.id,

@@ -6,6 +6,7 @@ import {
   input,
   linkedSignal,
   signal,
+  effect,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -14,14 +15,17 @@ import { ConfirmDialogService } from '@core/ui/confirm-dialog.service';
 import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import type { MenuItem } from '@shared/ui/action-menu';
+import { Avatar } from '@shared/ui/avatar';
 import { type BulkAction, type DataColumn, DataTable, type RowAction } from '@shared/ui/data-table';
 import { Dialog } from '@shared/ui/dialog';
 import { FilterBar } from '@shared/ui/filter-bar';
 import { Icon } from '@shared/ui/icon';
 import { PageHeader } from '@shared/ui/page-header';
 import { type ChoiceValue, Select } from '@shared/ui/select';
+import { StatusBadge } from '@shared/ui/status-badge';
 import { downloadCsv, timestampedName } from '@shared/utils/file';
 import { type FilterField, type FilterValues, matchesAny, withinRange } from '@shared/utils/filters';
+import { countryFlag } from '@shared/utils/country-flag';
 import { firstValueFrom } from 'rxjs';
 import { ImportButton } from '../../components/import-button';
 import { CustomerApi } from '../../data/customer-site.api';
@@ -37,9 +41,11 @@ import {
 } from '../../models/customer.model';
 import { CUSTOMER_STATUS_TONE } from '../../models/display';
 
+export type ListViewMode = 'table' | 'card';
+
 @Component({
   selector: 'amc-customer-list-page',
-  imports: [DataTable, Dialog, FilterBar, Icon, ImportButton, PageHeader, RouterLink, Select],
+  imports: [Avatar, DataTable, Dialog, FilterBar, Icon, ImportButton, PageHeader, RouterLink, Select, StatusBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './customer-list.page.html',
 })
@@ -61,8 +67,20 @@ export class CustomerListPage {
   readonly amc = input<string>();
   readonly manager = input<string>();
 
+  protected readonly viewMode = signal<ListViewMode>(
+    (localStorage.getItem('amc.customers.view') as ListViewMode | null) ?? 'table',
+  );
+  protected readonly CUSTOMER_STATUS_TONE = CUSTOMER_STATUS_TONE;
+  protected readonly countryFlag = countryFlag;
+
   protected readonly customers = rxResource({ stream: () => this.api.list() });
   protected readonly rows = computed(() => (this.customers.hasValue() ? this.customers.value() : []));
+
+  constructor() {
+    effect(() => {
+      localStorage.setItem('amc.customers.view', this.viewMode());
+    });
+  }
 
   protected readonly search = linkedSignal(() => this.q() ?? '');
   protected readonly filters = linkedSignal<FilterValues>(() => {
@@ -85,6 +103,7 @@ export class CustomerListPage {
       { key: 'status', label: 'Customer Status', type: 'multiselect', options: toOptions(CUSTOMER_STATUSES) },
       { key: 'type', label: 'Customer Type', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerType)() },
       { key: 'category', label: 'Customer Category', type: 'multiselect', options: this.lookupValues.options(LOOKUP.customerCategory)() },
+      { key: 'country', label: 'Country', type: 'multiselect', options: unique(rows.map((r) => `${countryFlag(r.address.country)} ${r.address.country}`)) },
       { key: 'region', label: 'Region', type: 'multiselect', options: unique(rows.map((r) => r.address.region)) },
       { key: 'city', label: 'City', type: 'multiselect', options: unique(rows.map((r) => r.address.city)) },
       { key: 'manager', label: 'Account Manager', type: 'multiselect', options: this.lookups.accountManagerOptions() },
@@ -108,6 +127,7 @@ export class CustomerListPage {
         matchesAny(f, 'status', c.status) &&
         matchesAny(f, 'type', c.type) &&
         matchesAny(f, 'category', c.category) &&
+        matchesAny(f, 'country', `${countryFlag(c.address.country)} ${c.address.country}`) &&
         matchesAny(f, 'region', c.address.region) &&
         matchesAny(f, 'city', c.address.city) &&
         matchesAny(f, 'manager', c.commercial.accountManagerId) &&
@@ -126,6 +146,7 @@ export class CustomerListPage {
     { key: 'contact', label: 'Primary Contact', value: (c) => c.primaryContactName, secondary: (c) => c.email, sortable: true, mobile: 'meta', width: 240 },
     { key: 'phone', label: 'Phone', value: (c) => c.phone, visibility: 'xl', mobile: 'meta', width: 160 },
     { key: 'email', label: 'Email', value: (c) => c.email, visibility: '2xl', width: 240 },
+    { key: 'country', label: 'Country', value: (c) => `${countryFlag(c.address.country)} ${c.address.country}`, sortable: true, visibility: 'xl', width: 170 },
     { key: 'city', label: 'City', value: (c) => c.address.city, secondary: (c) => c.address.region, sortable: true, mobile: 'meta', width: 150 },
     { key: 'sites', label: 'Sites', value: (c) => c.totalSites, type: 'number', sortable: true, visibility: 'lg', width: 90 },
     { key: 'contracts', label: 'Active Contracts', value: (c) => c.activeContracts, type: 'number', sortable: true, visibility: 'lg', width: 140 },

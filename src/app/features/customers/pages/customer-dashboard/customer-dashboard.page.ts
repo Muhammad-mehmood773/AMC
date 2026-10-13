@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { MiniChart } from '@shared/ui/mini-chart';
 import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import { RANGE_PRESETS, rangeLabel } from '@shared/ui/date-picker';
@@ -34,6 +35,7 @@ const DEFAULT_RANGE = RANGE_PRESETS.find((p) => p.label === 'Last 90 days')!.ran
     FilterBar,
     Icon,
     KpiCard,
+    MiniChart,
     NgTemplateOutlet,
     PageHeader,
     Panel,
@@ -90,6 +92,28 @@ export class CustomerDashboardPage {
     stream: ({ params }) => this.api.dashboard(params),
   });
   protected readonly data = computed(() => (this.dashboard.hasValue() ? this.dashboard.value() : null));
+
+  /** Donut chart: customer status distribution */
+  protected readonly statusChartLabels = computed(() => {
+    const k = this.data()?.kpis;
+    if (!k) return [];
+    return ['Active', 'On Hold / Inactive', 'New (period)'];
+  });
+  protected readonly statusChartValues = computed(() => {
+    const k = this.data()?.kpis;
+    if (!k) return [];
+    return [k.activeCustomers, k.inactiveCustomers, k.newCustomers];
+  });
+
+  /** Bar chart: agreement coverage */
+  protected readonly coverageChartLabels = computed(() => [
+    'Active Contracts', 'Active AMCs', 'Open SRs', 'Open WOs', 'Overdue Invoices',
+  ]);
+  protected readonly coverageChartValues = computed(() => {
+    const k = this.data()?.kpis;
+    if (!k) return [];
+    return [k.withActiveContracts, k.withActiveAmcs, k.withOpenServiceRequests, k.withOpenWorkOrders, k.withOutstandingInvoices];
+  });
 
   protected readonly statusTone = CUSTOMER_STATUS_TONE;
   protected readonly recordTone = recordTone;

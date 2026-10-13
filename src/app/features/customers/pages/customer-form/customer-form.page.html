@@ -109,6 +109,45 @@
           </div>
         }
 
+        <!-- Logo upload -->
+        <div class="amc-card flex items-center gap-5 p-4">
+          <div class="relative shrink-0">
+            @if (logoUrl()) {
+              <img
+                [src]="logoUrl()!"
+                alt="Customer logo"
+                class="h-16 w-16 rounded-xl object-cover ring-1 ring-line"
+              />
+              <button
+                type="button"
+                class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow"
+                title="Remove logo"
+                (click)="removeLogo()"
+              >
+                <amc-icon name="x" [size]="12" />
+              </button>
+            } @else {
+              <div class="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-line bg-surface-muted text-ink-subtle">
+                <amc-icon name="building" [size]="24" />
+              </div>
+            }
+          </div>
+          <div>
+            <p class="text-sm font-medium text-ink">Company Logo</p>
+            <p class="mt-0.5 text-xs text-ink-muted">PNG, JPG or SVG · max 2 MB · recommended 256×256</p>
+            <label class="amc-btn-secondary amc-btn-sm mt-2 cursor-pointer">
+              <amc-icon name="file-up" [size]="13" />
+              {{ logoUrl() ? 'Change logo' : 'Upload logo' }}
+              <input
+                type="file"
+                class="sr-only"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                (change)="onLogoChange($event)"
+              />
+            </label>
+          </div>
+        </div>
+
         <!-- A. Basic information -->
         @let b = form.controls.basic;
         <amc-panel

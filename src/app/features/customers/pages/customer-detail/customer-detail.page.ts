@@ -220,6 +220,10 @@ export class CustomerDetailPage {
     });
   }
 
+  protected print(): void {
+    window.print();
+  }
+
   protected selectTab(tab: string): void {
     this.activeTab.set(tab as CustomerTab);
     this.pendingAction.set(null);

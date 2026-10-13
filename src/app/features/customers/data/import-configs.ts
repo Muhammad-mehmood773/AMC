@@ -179,6 +179,7 @@ export function customerImportConfig(ctx: ImportContext, api: CustomerApi): Impo
           const branch = branchByName.get(v['branch'].toLowerCase()) ?? lookups.branches[0];
           const { first, last } = splitName(v['contactName']);
           const input: CustomerUpsert = {
+            logoUrl: null,
             code: (v['code'] || next()).toUpperCase(),
             name: v['name'],
             legalName: v['legalName'] || v['name'],

@@ -104,6 +104,7 @@ export interface Customer extends Identifiable, Auditable {
   readonly code: string;
   readonly name: string;
   readonly legalName: string;
+  readonly logoUrl: string | null;
   readonly type: CustomerType;
   readonly category: CustomerCategory;
   readonly status: CustomerStatus;

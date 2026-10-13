@@ -194,6 +194,8 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
 
   protected readonly lookupTypes = LOOKUP;
   protected readonly help = CUSTOMER_FIELD_HELP;
+  /** Customer logo as a data URL (base64). Stored separately from the reactive form. */
+  protected readonly logoUrl = signal<string | null>(null);
   protected readonly statusOptions = toOptions(CUSTOMER_STATUSES);
   protected readonly billingOptions = toOptions(BILLING_CYCLES);
   protected readonly priorityOptions = toOptions(SERVICE_PRIORITIES);
@@ -306,6 +308,22 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
     }
   }
 
+  protected onLogoChange(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.logoUrl.set(reader.result as string);
+      this.form.markAsDirty();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  protected removeLogo(): void {
+    this.logoUrl.set(null);
+    this.form.markAsDirty();
+  }
+
   protected onFiles(event: Event): void {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
@@ -393,6 +411,7 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
     const v = this.form.getRawValue();
     const { first, last } = splitName(v.contact.name);
     return {
+      logoUrl: this.logoUrl(),
       code: v.basic.code.trim().toUpperCase(),
       name: v.basic.name.trim(),
       legalName: v.basic.legalName.trim() || v.basic.name.trim(),
@@ -445,6 +464,7 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
 
   private patch(c: CustomerDetail): void {
     const contact = c.primaryContact;
+    this.logoUrl.set(c.logoUrl);
     // Patch dependent selects in order so cascading resets do not clear them.
     this.form.patchValue({ basic: { companyId: c.companyId }, operational: { serviceRegion: c.operational.serviceRegion ?? '' } });
     this.form.patchValue({

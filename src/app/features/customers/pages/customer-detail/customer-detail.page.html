@@ -39,7 +39,7 @@
     <header class="amc-card p-4 sm:p-5">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="flex min-w-0 items-start gap-4">
-          <amc-avatar [name]="cust.name" size="lg" />
+          <amc-avatar [name]="cust.name" size="lg" [logoUrl]="cust.logoUrl" />
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ cust.name }}</h1>
@@ -96,6 +96,10 @@
             <amc-icon name="map-pin" />
             Add Site
           </a>
+          <button type="button" class="amc-btn-secondary amc-no-print" (click)="print()" title="Print / Save as PDF">
+            <amc-icon name="printer" />
+            <span class="hidden sm:inline">Print</span>
+          </button>
           <a [routerLink]="['/app/customers', cust.id, 'edit']" class="amc-btn-primary">
             <amc-icon name="pencil" />
             Edit Customer
@@ -121,7 +125,7 @@
       </div>
     }
 
-    <amc-tabs [items]="tabs()" [active]="activeTab()" (activeChange)="selectTab($event)" />
+    <amc-tabs [items]="tabs()" [active]="activeTab()" (activeChange)="selectTab($event)" [maxVisible]="7" />
 
     @switch (activeTab()) {
       @case ('overview') {

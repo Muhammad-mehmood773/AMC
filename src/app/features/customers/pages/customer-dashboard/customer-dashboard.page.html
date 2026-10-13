@@ -149,6 +149,34 @@
       />
     </section>
 
+    <!-- Charts row -->
+    @if (data()) {
+      <section class="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Customer charts">
+        <amc-panel title="Customer Status" description="Distribution by status" icon="pie-chart" class="min-w-0">
+          <div class="px-4 pb-4 pt-2">
+            <amc-mini-chart
+              type="donut"
+              [labels]="statusChartLabels()"
+              [values]="statusChartValues()"
+              [height]="200"
+              ariaLabel="Customer status distribution chart"
+            />
+          </div>
+        </amc-panel>
+        <amc-panel title="Agreement Coverage" description="Customers with active agreements and open activity" icon="bar-chart" class="min-w-0">
+          <div class="px-4 pb-4 pt-2">
+            <amc-mini-chart
+              type="bar"
+              [labels]="coverageChartLabels()"
+              [values]="coverageChartValues()"
+              [height]="200"
+              ariaLabel="Agreement coverage bar chart"
+            />
+          </div>
+        </amc-panel>
+      </section>
+    }
+
     <!-- Widgets -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <amc-panel

@@ -209,6 +209,10 @@ export class SiteDetailPage {
     this.related.reload();
   }
 
+  protected print(): void {
+    window.print();
+  }
+
   protected async onAction(id: string): Promise<void> {
     const s = this.s();
     if (!s) return;

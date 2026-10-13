@@ -68,6 +68,10 @@
           <button type="button" class="amc-btn-icon" aria-label="Refresh" title="Refresh" (click)="refresh()">
             <amc-icon name="refresh" [class.animate-spin]="siteRes.isLoading()" />
           </button>
+          <button type="button" class="amc-btn-secondary amc-no-print" (click)="print()" title="Print / Save as PDF">
+            <amc-icon name="printer" />
+            <span class="hidden sm:inline">Print</span>
+          </button>
           <a [routerLink]="['/app/customers/sites', site.id, 'edit']" class="amc-btn-primary">
             <amc-icon name="pencil" />
             Edit Site

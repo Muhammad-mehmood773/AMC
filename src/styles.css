@@ -1,3 +1,61 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 @import './styles/base.css';
+
+/* ── Print styles ─────────────────────────────────────────────── */
+@media print {
+  /* Hide navigation, sidebar, buttons and non-content elements */
+  amc-app-shell > nav,
+  amc-app-shell > header,
+  .amc-no-print,
+  [data-no-print],
+  amc-filter-bar,
+  amc-page-header button,
+  amc-page-header a,
+  amc-action-menu,
+  amc-breadcrumbs,
+  amc-tabs,
+  .amc-btn-primary,
+  .amc-btn-secondary,
+  .amc-btn-ghost {
+    display: none !important;
+  }
+
+  /* Print area fills the page */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .amc-card {
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    break-inside: avoid;
+  }
+
+  /* Show the print-only header */
+  [data-print-only] {
+    display: block !important;
+  }
+
+  /* Tables */
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+  th, td {
+    border: 1px solid #e2e8f0;
+    padding: 4px 8px;
+    font-size: 10pt;
+  }
+  thead { background: #f8fafc !important; }
+
+  a { color: inherit !important; text-decoration: none !important; }
+
+  /* Page breaks */
+  amc-panel { break-inside: avoid; }
+  .print-page-break { page-break-before: always; }
+}

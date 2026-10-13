@@ -62,12 +62,22 @@ export interface BulkAction<T> {
   readonly rows: readonly T[];
 }
 
+export type TableDensity = 'compact' | 'comfortable' | 'spacious';
+
+/** Maps density to the --amc-cell-py CSS variable value used in amc-td. */
+const DENSITY_CELL_PY: Record<TableDensity, string> = {
+  compact: '0.35rem',
+  comfortable: '0.75rem',
+  spacious: '1.25rem',
+};
+
 interface TablePrefs {
   readonly visible: Readonly<Record<string, boolean>>;
   readonly widths: Readonly<Record<string, number>>;
+  readonly density: TableDensity;
 }
 
-const EMPTY_PREFS: TablePrefs = { visible: {}, widths: {} };
+const EMPTY_PREFS: TablePrefs = { visible: {}, widths: {}, density: 'comfortable' };
 const MIN_WIDTH = 72;
 
 const VISIBILITY: Record<ColumnVisibility, string> = {
@@ -142,6 +152,34 @@ function loadPrefs(id: string): TablePrefs {
           </p>
           <div class="flex items-center gap-1">
             <ng-content select="[toolbar]" />
+            <!-- Density toggle -->
+            <button
+              #densityBtn
+              type="button"
+              class="amc-btn-ghost amc-btn-sm hidden md:inline-flex"
+              aria-haspopup="dialog"
+              [attr.aria-expanded]="densityOpen()"
+              title="Row density"
+              (click)="densityOpen.set(!densityOpen())"
+            >
+              <amc-icon name="align-justify" [size]="14" />
+            </button>
+            <amc-popover [anchor]="densityBtn" [(open)]="densityOpen" align="end" role="dialog" ariaLabel="Row density" [minWidth]="180">
+              <div class="border-b border-line px-3 py-2.5">
+                <p class="text-sm font-semibold text-ink">Row density</p>
+              </div>
+              <ul class="p-1.5">
+                @for (opt of densityOptions; track opt.value) {
+                  <li>
+                    <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-sunken" [class.font-semibold]="density() === opt.value" (click)="setDensity(opt.value)">
+                      <amc-icon [name]="opt.icon" [size]="15" />
+                      {{ opt.label }}
+                      @if (density() === opt.value) { <amc-icon name="check" [size]="13" class="ml-auto text-brand" /> }
+                    </button>
+                  </li>
+                }
+              </ul>
+            </amc-popover>
             <button
               #columnsBtn
               type="button"
@@ -208,7 +246,7 @@ function loadPrefs(id: string): TablePrefs {
         <ng-content select="[empty]" />
       </amc-empty-state>
     } @else {
-      <div class="relative">
+      <div class="relative" [style.--amc-cell-py]="densityCellPy()">
         @if (loading()) {
           <div class="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden bg-brand-subtle">
             <div class="h-full w-1/3 animate-pulse bg-brand"></div>
@@ -348,7 +386,7 @@ function loadPrefs(id: string): TablePrefs {
         <!-- Stacked card layout (below md) -->
         <ul class="divide-y divide-line md:hidden">
           @for (row of pagedRows(); track trackBy()(row)) {
-            <li class="flex gap-3 px-4 py-3.5" [class.bg-row-selected]="isSelected(row)">
+            <li class="flex gap-3 px-4 transition-colors" [class.bg-row-selected]="isSelected(row)">
               @if (selectable()) {
                 <input
                   type="checkbox"
@@ -447,7 +485,15 @@ export class DataTable<T> {
 
   protected readonly skeletonRows = [1, 2, 3, 4, 5, 6];
   protected readonly columnsOpen = signal(false);
+  protected readonly densityOpen = signal(false);
   protected readonly prefs = linkedSignal(() => loadPrefs(this.tableId()));
+  protected readonly density = computed<TableDensity>(() => this.prefs().density ?? 'comfortable');
+  protected readonly densityCellPy = computed(() => DENSITY_CELL_PY[this.density()]);
+  protected readonly densityOptions: { value: TableDensity; label: string; icon: IconName }[] = [
+    { value: 'compact', label: 'Compact', icon: 'rows-3' },
+    { value: 'comfortable', label: 'Comfortable', icon: 'align-justify' },
+    { value: 'spacious', label: 'Spacious', icon: 'layout-list' },
+  ];
   protected readonly pageSize = linkedSignal(() => this.initialPageSize());
   protected readonly page = linkedSignal({
     source: () => [this.rows(), this.sort()] as const,
@@ -530,6 +576,11 @@ export class DataTable<T> {
 
   protected resetColumns(): void {
     this.prefs.set(EMPTY_PREFS);
+  }
+
+  protected setDensity(value: TableDensity): void {
+    this.prefs.update((p) => ({ ...p, density: value }));
+    this.densityOpen.set(false);
   }
 
   protected widthOf(col: DataColumn<T>): number | null {
