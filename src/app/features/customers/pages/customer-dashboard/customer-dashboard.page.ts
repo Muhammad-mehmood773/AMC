@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MiniChart } from '@shared/ui/mini-chart';
@@ -121,6 +121,60 @@ export class CustomerDashboardPage {
   protected readonly formatDate = formatDate;
   protected readonly relativeTime = relativeTime;
   protected readonly skeletons = [1, 2, 3, 4];
+
+  // ── Widget Customization ────────────────────────────────────────
+  private static readonly STORAGE_KEY = 'amc.dashboard.widgets';
+
+  static readonly WIDGET_DEFS = [
+    { id: 'kpis',              label: 'KPI Cards',              icon: 'layout-dashboard' as const },
+    { id: 'charts',            label: 'Charts',                 icon: 'bar-chart' as const },
+    { id: 'expiring',          label: 'Expiring Contracts',     icon: 'clock' as const },
+    { id: 'outstanding',       label: 'Outstanding Amounts',    icon: 'wallet' as const },
+    { id: 'service-requests',  label: 'Open Service Requests',  icon: 'ticket' as const },
+    { id: 'maintenance',       label: 'Upcoming Maintenance',   icon: 'calendar-check' as const },
+    { id: 'recent-customers',  label: 'Recent Customers',       icon: 'building' as const },
+    { id: 'recent-sites',      label: 'Recently Added Sites',   icon: 'map-pin' as const },
+    { id: 'activity',          label: 'Recent Activity',        icon: 'activity' as const },
+  ] as const;
+
+  protected readonly widgetDefs = CustomerDashboardPage.WIDGET_DEFS;
+
+  private loadVisible(): Set<string> {
+    try {
+      const raw = localStorage.getItem(CustomerDashboardPage.STORAGE_KEY);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+    // Default: all visible
+    return new Set(CustomerDashboardPage.WIDGET_DEFS.map((w) => w.id));
+  }
+
+  protected readonly visibleWidgets = signal<Set<string>>(this.loadVisible());
+  protected readonly customizeOpen = signal(false);
+
+  constructor() {
+    effect(() => {
+      localStorage.setItem(
+        CustomerDashboardPage.STORAGE_KEY,
+        JSON.stringify([...this.visibleWidgets()]),
+      );
+    });
+  }
+
+  protected isVisible(id: string): boolean {
+    return this.visibleWidgets().has(id);
+  }
+
+  protected toggleWidget(id: string): void {
+    this.visibleWidgets.update((set) => {
+      const next = new Set(set);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  protected resetWidgets(): void {
+    this.visibleWidgets.set(new Set(CustomerDashboardPage.WIDGET_DEFS.map((w) => w.id)));
+  }
 
   protected export(): void {
     const data = this.data();

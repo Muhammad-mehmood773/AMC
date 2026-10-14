@@ -14,6 +14,10 @@
       <amc-icon name="refresh" [class.animate-spin]="dashboard.isLoading()" />
       <span class="hidden sm:inline">Refresh</span>
     </button>
+    <button type="button" class="amc-btn-secondary" (click)="customizeOpen.set(!customizeOpen())">
+      <amc-icon name="sliders" />
+      <span class="hidden sm:inline">Customize</span>
+    </button>
     <button type="button" class="amc-btn-secondary" [disabled]="!data()" (click)="export()">
       <amc-icon name="download" />
       <span class="hidden sm:inline">Export</span>
@@ -41,6 +45,46 @@
     </amc-filter-bar>
   </section>
 
+  <!-- Widget customization panel -->
+  @if (customizeOpen()) {
+    <section class="amc-card animate-fade-in p-4" aria-label="Widget customization">
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semibold text-ink">Customize Dashboard</p>
+          <p class="text-xs text-ink-muted">Choose which widgets to show or hide.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="amc-btn-ghost amc-btn-sm text-xs" (click)="resetWidgets()">
+            <amc-icon name="refresh" [size]="12" /> Reset all
+          </button>
+          <button type="button" class="amc-btn-ghost amc-btn-sm" (click)="customizeOpen.set(false)" aria-label="Close">
+            <amc-icon name="x" [size]="14" />
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+        @for (w of widgetDefs; track w.id) {
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+            [class]="isVisible(w.id)
+              ? 'border-brand bg-brand-subtle text-brand'
+              : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink'"
+            (click)="toggleWidget(w.id)"
+          >
+            <amc-icon [name]="w.icon" [size]="14" class="shrink-0" />
+            <span class="truncate text-xs font-medium">{{ w.label }}</span>
+            <amc-icon
+              [name]="isVisible(w.id) ? 'check-circle' : 'eye-off'"
+              [size]="12"
+              class="ml-auto shrink-0"
+            />
+          </button>
+        }
+      </div>
+    </section>
+  }
+
   @if (dashboard.error()) {
     <div class="amc-card">
       <amc-error-state
@@ -52,6 +96,7 @@
     <!-- KPIs -->
     @let k = data()?.kpis;
     @let loading = !k;
+    @if (isVisible('kpis')) {
     <section
       class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
       aria-label="Key indicators"
@@ -148,9 +193,10 @@
         [hint]="formatCurrency(k?.outstandingTotal ?? 0, 'SAR', true) + ' outstanding'"
       />
     </section>
+    } <!-- end @if kpis -->
 
     <!-- Charts row -->
-    @if (data()) {
+    @if (data() && isVisible('charts')) {
       <section class="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Customer charts">
         <amc-panel title="Customer Status" description="Distribution by status" icon="pie-chart" class="min-w-0">
           <div class="px-4 pb-4 pt-2">
@@ -179,6 +225,7 @@
 
     <!-- Widgets -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      @if (isVisible('expiring'))  {
       <amc-panel
         class="lg:col-span-2"
         title="Expiring Contracts"
@@ -218,7 +265,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end expiring -->
 
+      @if (isVisible('outstanding')) {
       <amc-panel title="Outstanding Customer Amounts" description="Top receivables by customer" icon="wallet" [padded]="false">
         @if (!data()) {
           <ng-container *ngTemplateOutlet="listSkeleton" />
@@ -246,7 +295,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end outstanding -->
 
+      @if (isVisible('service-requests')) {
       <amc-panel title="Open Service Requests" icon="ticket" [padded]="false">
         @if (!data()) {
           <ng-container *ngTemplateOutlet="listSkeleton" />
@@ -270,7 +321,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end service-requests -->
 
+      @if (isVisible('maintenance')) {
       <amc-panel title="Upcoming Maintenance" icon="calendar-check" [padded]="false">
         @if (!data()) {
           <ng-container *ngTemplateOutlet="listSkeleton" />
@@ -295,7 +348,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end maintenance -->
 
+      @if (isVisible('recent-customers')) {
       <amc-panel title="Recent Customers" icon="building" [padded]="false">
         <a panelActions routerLink="/app/customers/list" class="amc-link text-xs">View all</a>
         @if (!data()) {
@@ -316,7 +371,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end recent-customers -->
 
+      @if (isVisible('recent-sites')) {
       <amc-panel title="Recently Added Sites" icon="map-pin" [padded]="false">
         <a panelActions routerLink="/app/customers/sites" class="amc-link text-xs">View all</a>
         @if (!data()) {
@@ -334,7 +391,9 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end recent-sites -->
 
+      @if (isVisible('activity')) {
       <amc-panel class="lg:col-span-2" title="Recent Service Activity" description="Latest completed field visits" icon="activity" [padded]="false">
         <a panelActions routerLink="/app/customers/history" class="amc-link text-xs">Open history</a>
         @if (!data()) {
@@ -364,6 +423,7 @@
           </ul>
         }
       </amc-panel>
+      } <!-- end activity -->
     </div>
   }
 </div>

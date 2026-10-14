@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import type { SelectOption } from '@shared/models/select-option';
 import type { CustomerLookups, LookupItem } from '../models/lookup.model';
 import { LookupApi } from './customer-site.api';
+import { countryFlag } from '@shared/utils/country-flag';
 
 const EMPTY: CustomerLookups = {
   companies: [],
@@ -52,7 +53,12 @@ export class CustomerLookupsStore {
     })),
   );
   readonly serviceRegionOptions = computed(() => toPlain(this.data().serviceRegions));
-  readonly countryOptions = computed(() => toPlain(this.data().countries.map((c) => c.name)));
+  readonly countryOptions = computed(() =>
+    this.data().countries.map((c) => ({
+      value: c.name,
+      label: `${countryFlag(c.name)}  ${c.name}`,
+    })),
+  );
 
   branchOptions(companyId: string): SelectOption[] {
     return toOptions(this.data().branches.filter((b) => !companyId || b.companyId === companyId));

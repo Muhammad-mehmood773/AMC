@@ -7,6 +7,7 @@ import {
   inject,
   input,
   linkedSignal,
+  signal,
   untracked,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -21,6 +22,7 @@ import { Icon } from '@shared/ui/icon';
 import { KpiCard } from '@shared/ui/kpi-card';
 import { Breadcrumbs } from '@shared/ui/page-header';
 import { Panel } from '@shared/ui/panel';
+import { SiteMap, type MapPin } from '@shared/ui/site-map';
 import { Skeleton } from '@shared/ui/skeleton';
 import { StatusBadge } from '@shared/ui/status-badge';
 import { type TabItem, Tabs } from '@shared/ui/tabs';
@@ -58,6 +60,7 @@ const TABS = [
   'maintenance',
   'service-history',
   'documents',
+  'floor-plan',
   'activity',
 ] as const;
 type SiteTab = (typeof TABS)[number];
@@ -83,6 +86,7 @@ const HANDOFFS: Record<string, HandoffAction> = {
     KpiCard,
     NgTemplateOutlet,
     Panel,
+    SiteMap,
     RouterLink,
     Skeleton,
     StatusBadge,
@@ -142,6 +146,7 @@ export class SiteDetailPage {
       { id: 'maintenance', label: 'Maintenance', count: r?.maintenance.length },
       { id: 'service-history', label: 'Service History', count: r?.serviceHistory.length },
       { id: 'documents', label: 'Documents' },
+      { id: 'floor-plan', label: 'Floor Plan' },
       { id: 'activity', label: 'Activity' },
     ];
   });
@@ -175,6 +180,95 @@ export class SiteDetailPage {
   protected readonly recordTone = recordTone;
   protected readonly formatDate = formatDate;
   protected readonly formatDateTime = formatDateTime;
+
+  // ── #27 Site health indicator ──────────────────────────────────
+  protected readonly siteHealth = computed(() => {
+    const s = this.s();
+    if (!s) return { score: 'Good' as const, tone: 'ok' as const, reasons: [] as string[] };
+    const reasons: string[] = [];
+    if (s.openServiceRequests > 2) reasons.push(`${s.openServiceRequests} open service requests`);
+    if (s.openWorkOrders > 2) reasons.push(`${s.openWorkOrders} open work orders`);
+    if (s.activeContracts === 0 && s.activeAmcs === 0) reasons.push('No active contract or AMC');
+    if (s.status === 'Temporarily Closed') reasons.push('Site temporarily closed');
+    const score = reasons.length === 0 ? 'Good' : reasons.length === 1 ? 'At Risk' : 'Critical';
+    const tone = score === 'Good' ? 'ok' : score === 'At Risk' ? 'warn' : 'danger';
+    return { score, tone, reasons };
+  });
+
+  // ── #25 Floor plan upload ──────────────────────────────────────
+  protected readonly floorPlanUrl = signal<string | null>(null);
+  protected readonly floorPlanName = signal<string | null>(null);
+
+  protected onFloorPlanChange(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.floorPlanUrl.set(reader.result as string);
+      this.floorPlanName.set(file.name);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  protected removeFloorPlan(): void {
+    this.floorPlanUrl.set(null);
+    this.floorPlanName.set(null);
+  }
+
+  // ── #28 QR code ────────────────────────────────────────────────
+  protected readonly qrDataUrl = signal<string | null>(null);
+  protected readonly qrLoading = signal(false);
+
+  protected async generateQr(): Promise<void> {
+    const s = this.s();
+    if (!s || this.qrDataUrl()) return;
+    this.qrLoading.set(true);
+    const url = `${window.location.origin}/app/customers/sites/${s.id}`;
+    // Build QR using Google Charts API (no library needed, free, no auth)
+    const apiUrl = `https://chart.googleapis.com/chart?cht=qr&chs=256x256&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+    try {
+      const res = await fetch(apiUrl);
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.readAsDataURL(blob);
+      });
+      this.qrDataUrl.set(dataUrl);
+    } catch {
+      this.qrDataUrl.set(apiUrl); // fallback: use URL directly as img src
+    } finally {
+      this.qrLoading.set(false);
+    }
+  }
+
+  protected downloadQr(): void {
+    const url = this.qrDataUrl();
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `site-qr-${this.s()?.code ?? 'site'}.png`;
+    a.click();
+  }
+
+  // ── #29 Nearby sites map ───────────────────────────────────────
+  protected readonly nearbySites = rxResource({
+    params: () => this.s()?.customerId,
+    stream: ({ params }) => this.sitesApi.list({ customerId: params ?? '' }),
+  });
+
+  protected readonly nearbyPins = computed<MapPin[]>(() => {
+    const current = this.s();
+    return (this.nearbySites.hasValue() ? this.nearbySites.value() ?? [] : [])
+      .filter((site) => site.id !== current?.id && site.location.latitude !== null && site.location.longitude !== null)
+      .map((site) => ({
+        id: site.id,
+        lat: site.location.latitude!,
+        lng: site.location.longitude!,
+        label: site.name,
+        status: site.status,
+      }));
+  });
 
   constructor() {
     effect(() => {

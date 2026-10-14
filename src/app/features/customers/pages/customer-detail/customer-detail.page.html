@@ -44,6 +44,21 @@
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ cust.name }}</h1>
               <amc-status-badge [label]="cust.status" [tone]="statusTone[cust.status]" />
+              <!-- #19 Health score -->
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                [class]="healthScore().score === 'Good'
+                  ? 'bg-success/15 text-success'
+                  : healthScore().score === 'At Risk'
+                  ? 'bg-warn/15 text-warn'
+                  : 'bg-danger/15 text-danger'"
+                [title]="healthScore().reasons.length ? 'Issues: ' + healthScore().reasons.join(', ') : 'No issues detected'"
+              >
+                <span class="h-1.5 w-1.5 rounded-full"
+                  [class]="healthScore().score === 'Good' ? 'bg-success' : healthScore().score === 'At Risk' ? 'bg-warn' : 'bg-danger'">
+                </span>
+                {{ healthScore().score }}
+              </span>
             </div>
             <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
               <span class="font-mono text-[13px]">{{ cust.code }}</span>
@@ -255,6 +270,100 @@
                 </dl>
               </amc-panel>
 
+              <!-- #24 Site status summary -->
+              <amc-panel title="Site status summary" icon="map-pin">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded-lg bg-surface-sunken p-3">
+                    <p class="text-xl font-bold text-success tabular-nums">{{ siteStatusSummary().active }}</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Active</p>
+                  </div>
+                  <div class="rounded-lg bg-surface-sunken p-3">
+                    <p class="text-xl font-bold text-warn tabular-nums">{{ siteStatusSummary().planned }}</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Planned</p>
+                  </div>
+                  <div class="rounded-lg bg-surface-sunken p-3">
+                    <p class="text-xl font-bold text-ink-muted tabular-nums">{{ siteStatusSummary().inactive }}</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Inactive</p>
+                  </div>
+                </div>
+                @if (siteStatusSummary().total > 0) {
+                  <div class="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-sunken">
+                    @if (siteStatusSummary().active > 0) {
+                      <div class="bg-success transition-all" [style.width.%]="(siteStatusSummary().active / siteStatusSummary().total) * 100"></div>
+                    }
+                    @if (siteStatusSummary().planned > 0) {
+                      <div class="bg-warn transition-all" [style.width.%]="(siteStatusSummary().planned / siteStatusSummary().total) * 100"></div>
+                    }
+                  </div>
+                }
+              </amc-panel>
+
+              <!-- #20 Quick notes widget -->
+              <amc-panel title="Quick notes" description="Internal team notes — saved locally" icon="sticky-note">
+                <div class="space-y-3">
+                  <div class="flex gap-2">
+                    <input
+                      class="amc-input flex-1 text-sm"
+                      placeholder="Add a quick note…"
+                      [value]="quickNote()"
+                      (input)="quickNote.set($any($event.target).value)"
+                      (keydown.enter)="addQuickNote()"
+                      maxlength="200"
+                    />
+                    <button type="button" class="amc-btn-primary amc-btn-sm shrink-0" (click)="addQuickNote()">
+                      <amc-icon name="plus" [size]="14" />
+                    </button>
+                  </div>
+                  @if (quickNotes().length === 0) {
+                    <p class="py-2 text-center text-xs text-ink-subtle">No notes yet. Add one above.</p>
+                  } @else {
+                    <ul class="space-y-2">
+                      @for (note of quickNotes(); track note.id) {
+                        <li class="flex items-start gap-2 rounded-lg border border-line bg-surface-sunken px-3 py-2">
+                          <p class="flex-1 text-xs text-ink">{{ note.text }}</p>
+                          <button type="button" class="shrink-0 text-ink-subtle hover:text-danger" (click)="removeQuickNote(note.id)" aria-label="Remove note">
+                            <amc-icon name="x" [size]="12" />
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </amc-panel>
+
+              <!-- #21 Relationship map -->
+              <amc-panel title="Relationship map" description="Customer → Sites → Contacts" icon="user">
+                <div class="space-y-1 text-sm">
+                  <div class="flex items-center gap-2 font-medium text-ink">
+                    <amc-icon name="building" [size]="14" class="shrink-0 text-brand" />
+                    {{ cust.name }}
+                  </div>
+                  @for (site of siteRows().slice(0, 6); track site.id) {
+                    <div class="ml-4 border-l border-line pl-3">
+                      <button type="button" class="flex w-full items-center gap-1.5 py-0.5 text-left text-xs text-ink hover:text-brand" (click)="toggleRelNode(site.id)">
+                        <amc-icon [name]="relMapExpanded().has(site.id) ? 'chevron-down' : 'chevron-right'" [size]="10" />
+                        <amc-icon name="map-pin" [size]="11" class="shrink-0 text-ink-muted" />
+                        <span class="truncate">{{ site.name }}</span>
+                        <amc-status-badge [label]="site.status" [tone]="siteStatusTone[site.status]" />
+                      </button>
+                      @if (relMapExpanded().has(site.id)) {
+                        <div class="ml-4 mt-1 border-l border-line pl-3 pb-1 text-xs text-ink-muted">
+                          <p class="flex items-center gap-1"><amc-icon name="box" [size]="10" />{{ site.totalAssets }} asset{{ site.totalAssets === 1 ? '' : 's' }}</p>
+                          <p class="flex items-center gap-1"><amc-icon name="ticket" [size]="10" />{{ site.openServiceRequests }} open SR{{ site.openServiceRequests === 1 ? '' : 's' }}</p>
+                          <a [routerLink]="['/app/customers/sites', site.id]" class="amc-link mt-1 inline-block text-[10px]">Open site →</a>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @if (siteRows().length > 6) {
+                    <p class="ml-7 text-xs text-ink-muted">+ {{ siteRows().length - 6 }} more sites</p>
+                  }
+                  @if (siteRows().length === 0) {
+                    <p class="ml-7 text-xs text-ink-muted">No sites yet.</p>
+                  }
+                </div>
+              </amc-panel>
+
               <amc-panel title="Recent activity" icon="activity" [padded]="false">
                 <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('activity')">View all</button>
                 @if (!recentActivity.hasValue()) {
@@ -386,6 +495,42 @@
             </button>
           </div>
         </div>
+      }
+      @case ('comms') {
+        <!-- #22 Communication history placeholder -->
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <div>
+              <h2 class="text-sm font-semibold text-ink">Communication History</h2>
+              <p class="mt-0.5 text-xs text-ink-muted">Emails, calls and visits — placeholder for future CRM integration.</p>
+            </div>
+            <span class="rounded-full bg-brand-subtle px-2.5 py-0.5 text-xs font-medium text-brand">Preview</span>
+          </div>
+          <ul class="divide-y divide-line">
+            @for (comm of mockComms(); track comm.id) {
+              <li class="flex items-start gap-4 px-4 py-4 sm:px-5">
+                <span
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm"
+                  [class]="comm.type === 'Email' ? 'bg-brand-subtle text-brand' : comm.type === 'Call' ? 'bg-success/15 text-success' : 'bg-accent-subtle text-accent'"
+                >
+                  <amc-icon [name]="comm.type === 'Email' ? 'mail' : comm.type === 'Call' ? 'phone' : 'map-pin'" [size]="15" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p class="text-sm font-medium text-ink">{{ comm.subject }}</p>
+                    <amc-status-badge [label]="comm.outcome" tone="neutral" />
+                  </div>
+                  <p class="mt-0.5 text-xs text-ink-muted">
+                    {{ comm.type }} · {{ comm.direction }} · {{ comm.contact }} · {{ formatDate(comm.date.toISOString()) }}
+                  </p>
+                </div>
+              </li>
+            }
+          </ul>
+          <div class="border-t border-line bg-surface-sunken px-4 py-3 text-center text-xs text-ink-muted sm:px-5">
+            Connect your email or CRM in Settings to see live communication history.
+          </div>
+        </section>
       }
       @case ('activity') {
         <amc-activity-timeline [customerId]="cust.id" />

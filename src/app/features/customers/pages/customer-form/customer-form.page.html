@@ -109,6 +109,63 @@
           </div>
         }
 
+        <!-- #12 Draft restored banner -->
+        @if (draftAge()) {
+          <div class="flex animate-fade-in items-center gap-3 rounded-xl border border-brand/30 bg-brand-subtle px-4 py-3 text-sm">
+            <amc-icon name="save" [size]="16" class="shrink-0 text-brand" />
+            <p class="flex-1 text-ink">
+              <span class="font-medium">Draft restored</span>
+              <span class="text-ink-muted"> — last saved {{ draftAge() }}. Your unsaved changes were recovered.</span>
+            </p>
+            <button type="button" class="amc-btn-ghost amc-btn-sm text-xs text-ink-muted" (click)="clearDraft()">
+              Discard draft
+            </button>
+          </div>
+        }
+
+        <!-- #11 Progress indicator -->
+        <div class="amc-card px-4 py-3">
+          <div class="mb-2 flex items-center justify-between">
+            <p class="text-xs font-medium text-ink-muted">Form completion</p>
+            <p class="text-xs font-semibold text-ink">{{ overallProgress() }}%</p>
+          </div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              [class]="overallProgress() === 100 ? 'bg-success' : overallProgress() >= 60 ? 'bg-brand' : 'bg-warn'"
+              [style.width.%]="overallProgress()"
+            ></div>
+          </div>
+          <div class="mt-3 grid grid-cols-4 gap-1 sm:grid-cols-7">
+            @for (section of sections; track section.id; let i = $index) {
+              <button
+                type="button"
+                class="flex flex-col items-center gap-1 rounded-lg p-1.5 text-center transition-colors hover:bg-surface"
+                (click)="scrollTo(section.id)"
+                [title]="section.label"
+              >
+                <span
+                  class="flex h-7 w-7 items-center justify-center rounded-full text-[11px]"
+                  [class]="sectionProgress()[i] === 100
+                    ? 'bg-success/15 text-success'
+                    : sectionInvalid(section.group)
+                    ? 'bg-danger/15 text-danger'
+                    : 'bg-surface-sunken text-ink-muted'"
+                >
+                  @if (sectionProgress()[i] === 100) {
+                    <amc-icon name="check" [size]="12" />
+                  } @else if (sectionInvalid(section.group)) {
+                    <amc-icon name="alert-triangle" [size]="12" />
+                  } @else {
+                    {{ i + 1 }}
+                  }
+                </span>
+                <span class="hidden truncate text-[10px] text-ink-muted sm:block">{{ section.label.split(' ')[0] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
         <!-- Logo upload -->
         <div class="amc-card flex items-center gap-5 p-4">
           <div class="relative shrink-0">

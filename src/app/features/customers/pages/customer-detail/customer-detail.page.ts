@@ -60,9 +60,16 @@ const TABS = [
   'invoices',
   'documents',
   'notes',
+  'comms',
   'activity',
 ] as const;
 type CustomerTab = (typeof TABS)[number];
+
+export interface HealthScore {
+  score: 'Good' | 'At Risk' | 'Critical';
+  tone: 'ok' | 'warn' | 'danger';
+  reasons: string[];
+}
 
 @Component({
   selector: 'amc-customer-detail-page',
@@ -154,6 +161,7 @@ export class CustomerDetailPage {
       { id: 'invoices', label: 'Invoices', count: r?.invoices.length },
       { id: 'documents', label: 'Documents', count: c?.totalDocuments },
       { id: 'notes', label: 'Notes' },
+      { id: 'comms', label: 'Communications' },
       { id: 'activity', label: 'Activity' },
     ];
   });
@@ -209,6 +217,84 @@ export class CustomerDetailPage {
   protected readonly formatDate = formatDate;
   protected readonly formatDateTime = formatDateTime;
 
+  // ── #19 Health score ───────────────────────────────────────────
+  protected readonly healthScore = computed<HealthScore>(() => {
+    const c = this.c();
+    if (!c) return { score: 'Good', tone: 'ok', reasons: [] };
+    const reasons: string[] = [];
+    if (c.openServiceRequests > 3) reasons.push(`${c.openServiceRequests} open service requests`);
+    if (c.outstandingAmount > 0) reasons.push('Outstanding invoices');
+    if (c.activeContracts === 0 && c.activeAmcs === 0) reasons.push('No active contract or AMC');
+    if (c.status === 'On Hold') reasons.push('Account on hold');
+    if (c.status === 'Inactive' || c.status === 'Archived') reasons.push('Account inactive');
+    const score = reasons.length === 0 ? 'Good' : reasons.length <= 1 ? 'At Risk' : 'Critical';
+    const tone = score === 'Good' ? 'ok' : score === 'At Risk' ? 'warn' : 'danger';
+    return { score, tone, reasons };
+  });
+
+  // ── #24 Site status summary ────────────────────────────────────
+  protected readonly siteStatusSummary = computed(() => {
+    const rows = this.siteRows();
+    return {
+      active:   rows.filter((s) => s.status === 'Active').length,
+      inactive: rows.filter((s) => s.status === 'Inactive').length,
+      planned:  rows.filter((s) => s.status === 'Planned').length,
+      total:    rows.length,
+    };
+  });
+
+  // ── #20 Quick notes (localStorage) ────────────────────────────
+  private get quickNotesKey(): string { return `amc.quicknotes.${this.customerId()}`; }
+  protected readonly quickNote = signal('');
+  protected readonly quickNotes = signal<Array<{ id: string; text: string; ts: number }>>([]);
+
+  private loadQuickNotes(): void {
+    try {
+      const raw = localStorage.getItem(this.quickNotesKey);
+      this.quickNotes.set(raw ? (JSON.parse(raw) as Array<{ id: string; text: string; ts: number }>) : []);
+    } catch { this.quickNotes.set([]); }
+  }
+
+  private saveQuickNotes(): void {
+    try { localStorage.setItem(this.quickNotesKey, JSON.stringify(this.quickNotes())); } catch { /* ignore */ }
+  }
+
+  protected addQuickNote(): void {
+    const text = this.quickNote().trim();
+    if (!text) return;
+    this.quickNotes.update((n) => [{ id: crypto.randomUUID(), text, ts: Date.now() }, ...n]);
+    this.quickNote.set('');
+    this.saveQuickNotes();
+  }
+
+  protected removeQuickNote(id: string): void {
+    this.quickNotes.update((n) => n.filter((x) => x.id !== id));
+    this.saveQuickNotes();
+  }
+
+  // ── #21 Relationship map ───────────────────────────────────────
+  protected readonly relMapExpanded = signal<Set<string>>(new Set());
+  protected toggleRelNode(id: string): void {
+    this.relMapExpanded.update((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  // ── #22 Mock comms history ─────────────────────────────────────
+  protected readonly mockComms = computed(() => {
+    const c = this.c();
+    if (!c) return [];
+    const base = new Date('2026-08-01').getTime();
+    return [
+      { id: '1', type: 'Email', direction: 'Outbound', subject: 'Contract renewal proposal', contact: c.primaryContactName ?? 'Primary Contact', date: new Date(base + 1e7), outcome: 'Sent' },
+      { id: '2', type: 'Call',  direction: 'Inbound',  subject: 'Service request follow-up', contact: c.primaryContactName ?? 'Primary Contact', date: new Date(base + 2e7), outcome: 'Completed' },
+      { id: '3', type: 'Email', direction: 'Inbound',  subject: 'Invoice query',              contact: c.primaryContactName ?? 'Primary Contact', date: new Date(base + 3e7), outcome: 'Received' },
+      { id: '4', type: 'Visit', direction: 'Outbound', subject: 'Quarterly account review',   contact: c.primaryContactName ?? 'Primary Contact', date: new Date(base + 4e7), outcome: 'Completed' },
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+  });
+
   constructor() {
     // Strip one-shot action params from the URL after they have been handed to child components.
     effect(() => {
@@ -217,6 +303,10 @@ export class CustomerDetailPage {
           void this.router.navigate([], { queryParams: { action: null }, queryParamsHandling: 'merge', replaceUrl: true }),
         );
       }
+    });
+    // Load quick notes whenever customer changes.
+    effect(() => {
+      if (this.customerId()) untracked(() => this.loadQuickNotes());
     });
   }
 

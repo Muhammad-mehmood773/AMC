@@ -39,6 +39,21 @@
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ site.name }}</h1>
               <amc-status-badge [label]="site.status" [tone]="statusTone[site.status]" />
+              <!-- #27 Site health indicator -->
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                [class]="siteHealth().score === 'Good'
+                  ? 'bg-success/15 text-success'
+                  : siteHealth().score === 'At Risk'
+                  ? 'bg-warn/15 text-warn'
+                  : 'bg-danger/15 text-danger'"
+                [title]="siteHealth().reasons.length ? 'Issues: ' + siteHealth().reasons.join(', ') : 'No issues detected'"
+              >
+                <span class="h-1.5 w-1.5 rounded-full"
+                  [class]="siteHealth().score === 'Good' ? 'bg-success' : siteHealth().score === 'At Risk' ? 'bg-warn' : 'bg-danger'">
+                </span>
+                {{ siteHealth().score }}
+              </span>
             </div>
             <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
               <span class="font-mono text-[13px]">{{ site.code }}</span>
@@ -143,7 +158,27 @@
                   <amc-detail-item label="Site Contact" [value]="site.primaryContactName" />
                   <amc-detail-item label="Site Manager" [value]="site.siteManagerName" />
                   <amc-detail-item label="Emergency Contact" [value]="site.emergencyContactName" />
-                  <amc-detail-item label="Operating Hours" [value]="site.operatingHours" />
+
+                  <!-- #26 Operating hours visual weekly grid -->
+                  <div class="sm:col-span-3">
+                    <dt class="text-xs font-medium text-ink-muted">Operating Hours</dt>
+                    <dd class="mt-2">
+                      <div class="mb-2 flex flex-wrap gap-1">
+                        @for (day of ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; track day) {
+                          <span
+                            class="inline-flex h-8 w-12 items-center justify-center rounded-md text-xs font-medium"
+                            [class]="isVisitDay(day) ? 'bg-brand-subtle text-brand' : 'bg-surface-sunken text-ink-subtle'"
+                          >{{ day }}</span>
+                        }
+                      </div>
+                      @if (site.operatingHours) {
+                        <p class="text-sm text-ink">{{ site.operatingHours }}</p>
+                      } @else {
+                        <p class="text-xs text-ink-subtle">Not specified</p>
+                      }
+                    </dd>
+                  </div>
+
                   <amc-detail-item label="Service Hours" [value]="site.serviceHours" />
                   <div></div>
                   <amc-detail-item class="sm:col-span-3" label="Access Requirements" [value]="site.accessRequirements" />
@@ -214,6 +249,53 @@
                 }
               </amc-panel>
 
+              <!-- #28 QR code panel -->
+              <amc-panel title="Site QR Code" description="Scan to open this site" icon="qr-code">
+                <div class="flex flex-col items-center gap-3">
+                  @if (!qrDataUrl() && !qrLoading()) {
+                    <div class="flex h-32 w-32 items-center justify-center rounded-xl border-2 border-dashed border-line bg-surface-sunken text-ink-subtle">
+                      <amc-icon name="qr-code" [size]="40" />
+                    </div>
+                    <button type="button" class="amc-btn-secondary amc-btn-sm w-full" (click)="generateQr()">
+                      <amc-icon name="qr-code" [size]="14" /> Generate QR
+                    </button>
+                  } @else if (qrLoading()) {
+                    <div class="flex h-32 w-32 items-center justify-center rounded-xl bg-surface-sunken">
+                      <amc-skeleton class="h-24 w-24 rounded-lg" />
+                    </div>
+                  } @else {
+                    <img [src]="qrDataUrl()!" alt="Site QR Code" class="h-36 w-36 rounded-xl border border-line" />
+                    <p class="text-center text-xs text-ink-muted">{{ s()?.name }}</p>
+                    <div class="flex w-full gap-2">
+                      <button type="button" class="amc-btn-secondary amc-btn-sm flex-1" (click)="downloadQr()">
+                        <amc-icon name="download" [size]="13" /> Download
+                      </button>
+                      <button type="button" class="amc-btn-ghost amc-btn-sm" title="Regenerate" (click)="qrDataUrl.set(null)">
+                        <amc-icon name="refresh" [size]="13" />
+                      </button>
+                    </div>
+                  }
+                </div>
+              </amc-panel>
+
+              <!-- #29 Nearby sites -->
+              @if (nearbyPins().length > 0) {
+                <amc-panel title="Nearby sites" [description]="'Other sites of ' + site.customerName" icon="map-pin" class="overflow-hidden" [padded]="false">
+                  <amc-site-map [pins]="nearbyPins()" [height]="220" />
+                  <ul class="divide-y divide-line">
+                    @for (pin of nearbyPins().slice(0, 3); track pin.id) {
+                      <li class="flex items-center gap-3 px-4 py-2.5">
+                        <amc-icon name="map-pin" [size]="14" class="shrink-0 text-ink-muted" />
+                        <a [routerLink]="['/app/customers/sites', pin.id]" class="flex-1 truncate text-sm text-ink hover:text-brand">{{ pin.label }}</a>
+                        @if (pin.status) {
+                          <span class="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-ink-muted">{{ pin.status }}</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </amc-panel>
+              }
+
               <amc-panel title="Record" icon="info">
                 <dl class="space-y-3">
                   <amc-detail-item label="Created" [value]="formatDateTime(site.createdAt) + ' · ' + site.createdBy" />
@@ -277,6 +359,52 @@
       }
       @case ('documents') {
         <amc-document-manager [customerId]="site.customerId" [siteId]="site.id" [openUploadOnInit]="pendingAction() === 'upload'" />
+      }
+      @case ('floor-plan') {
+        <!-- #25 Floor plan upload + viewer -->
+        <section class="amc-card p-5">
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-semibold text-ink">Floor Plan</h2>
+              <p class="mt-0.5 text-xs text-ink-muted">Upload an image of the site layout (PNG, JPG, PDF image). Stored locally in this session.</p>
+            </div>
+            @if (floorPlanUrl()) {
+              <div class="flex gap-2">
+                <label class="amc-btn-secondary amc-btn-sm cursor-pointer">
+                  <amc-icon name="file-up" [size]="13" /> Replace
+                  <input type="file" class="sr-only" accept="image/*" (change)="onFloorPlanChange($event)" />
+                </label>
+                <button type="button" class="amc-btn-ghost amc-btn-sm text-danger" (click)="removeFloorPlan()">
+                  <amc-icon name="x" [size]="13" /> Remove
+                </button>
+              </div>
+            }
+          </div>
+
+          @if (!floorPlanUrl()) {
+            <label class="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-line bg-surface-sunken py-16 transition-colors hover:border-brand hover:bg-brand-subtle/30">
+              <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-surface text-ink-subtle shadow-sm">
+                <amc-icon name="file-up" [size]="24" />
+              </div>
+              <div class="text-center">
+                <p class="text-sm font-medium text-ink">Click to upload floor plan</p>
+                <p class="mt-1 text-xs text-ink-muted">PNG, JPG or WebP · max 10 MB</p>
+              </div>
+              <input type="file" class="sr-only" accept="image/*" (change)="onFloorPlanChange($event)" />
+            </label>
+          } @else {
+            <div class="overflow-hidden rounded-xl border border-line bg-surface-sunken">
+              <img
+                [src]="floorPlanUrl()!"
+                [alt]="floorPlanName() ?? 'Floor plan'"
+                class="mx-auto block max-h-[70vh] w-full object-contain"
+              />
+              <div class="border-t border-line bg-surface px-4 py-2 text-xs text-ink-muted">
+                {{ floorPlanName() }}
+              </div>
+            </div>
+          }
+        </section>
       }
       @case ('activity') {
         <amc-activity-timeline [siteId]="site.id" />

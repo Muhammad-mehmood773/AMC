@@ -228,6 +228,60 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
   protected readonly attachments = signal<readonly File[]>([]);
   private saved = false;
 
+  // ── #11 Progress indicator ─────────────────────────────────────
+  /** Returns 0-100 representing how many required fields in each section are filled. */
+  protected readonly sectionProgress = computed(() => {
+    this.formEvents(); // re-run on any form event
+    return this.sections.map((s) => {
+      if (s.group === 'attachments' || s.group === 'notes') return 100;
+      const grp = this.form.controls[s.group];
+      const controls = Object.values(grp.controls as Record<string, { value: unknown; valid: boolean; errors: Record<string, unknown> | null }>);
+      const required = controls.filter((c) => c.errors != null && 'required' in c.errors);
+      if (required.length === 0) return grp.valid ? 100 : 80;
+      const filled = required.filter((c) => c.value !== '' && c.value !== null && c.value !== undefined).length;
+      return Math.round((filled / required.length) * 100);
+    });
+  });
+
+  protected readonly overallProgress = computed(() => {
+    const values = this.sectionProgress();
+    return Math.round(values.reduce((s, v) => s + v, 0) / values.length);
+  });
+
+  // ── #12 Auto-save draft ────────────────────────────────────────
+  private static readonly DRAFT_KEY = 'amc.customer.draft';
+
+  private saveDraft(): void {
+    if (this.customerId()) return; // only in create mode
+    try {
+      localStorage.setItem(
+        CustomerFormPage.DRAFT_KEY,
+        JSON.stringify({ form: this.form.getRawValue(), logoUrl: this.logoUrl(), ts: Date.now() }),
+      );
+    } catch { /* ignore quota errors */ }
+  }
+
+  protected clearDraft(): void {
+    localStorage.removeItem(CustomerFormPage.DRAFT_KEY);
+    this.draftAge.set(null);
+  }
+
+  protected readonly draftAge = signal<string | null>(null);
+
+  private loadDraft(): boolean {
+    if (this.customerId()) return false;
+    try {
+      const raw = localStorage.getItem(CustomerFormPage.DRAFT_KEY);
+      if (!raw) return false;
+      const { form, logoUrl, ts } = JSON.parse(raw) as { form: ReturnType<CustomerFormPage['form']['getRawValue']>; logoUrl: string | null; ts: number };
+      const ageMin = Math.round((Date.now() - ts) / 60000);
+      this.draftAge.set(ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`);
+      this.form.patchValue(form as never, { emitEvent: false });
+      this.logoUrl.set(logoUrl);
+      return true;
+    } catch { return false; }
+  }
+
   constructor() {
     effect(() => {
       if (this.existing.hasValue() && this.existing.value()) {
@@ -239,6 +293,11 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
     basic.companyId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => basic.branchId.setValue(''));
     const op = this.form.controls.operational.controls;
     op.serviceRegion.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => op.serviceTerritoryId.setValue(''));
+
+    // Auto-save draft every 3 seconds of inactivity (create mode only)
+    this.form.valueChanges
+      .pipe(debounceTime(3000), takeUntilDestroyed())
+      .subscribe(() => this.saveDraft());
 
     // Apply country-specific validation to legal fields whenever the address country changes.
     effect(() => {
@@ -275,6 +334,7 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
 
   ngOnInit(): void {
     if (!this.customerId()) {
+      this.loadDraft();
       void firstValueFrom(this.api.nextCode()).then((code) => {
         if (!this.form.controls.basic.controls.code.dirty) {
           this.form.controls.basic.controls.code.setValue(code);
@@ -388,6 +448,7 @@ export class CustomerFormPage implements HasUnsavedChanges, OnInit {
         );
       }
       this.saved = true;
+      this.clearDraft();
       this.notify.success(`${customer.name} was ${id ? 'updated' : 'created'} successfully.`, id ? 'Customer updated' : 'Customer created');
       if (intent === 'site') {
         void this.router.navigate(['/app/customers/sites/new'], { queryParams: { customerId: customer.id } });
