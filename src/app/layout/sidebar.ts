@@ -87,7 +87,7 @@ import { APP_NAVIGATION, isNavItemActive, type NavItem } from './navigation';
 
     <!-- Desktop rail -->
     <aside
-      class="fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line text-ink transition-[width] duration-200 lg:flex"
+      class="fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line text-ink shadow-[var(--shadow-sidebar)] transition-[width] duration-200 lg:flex"
       [class]="(collapsed() ? 'w-[72px] ' : 'w-64 ') + surfaceClass()"
     >
       <ng-container [ngTemplateOutlet]="content" [ngTemplateOutletContext]="{ $implicit: collapsed() }" />

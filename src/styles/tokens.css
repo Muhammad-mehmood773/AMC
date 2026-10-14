@@ -34,8 +34,16 @@
   --color-row-hover: color-mix(in oklab, var(--color-surface-sunken) 60%, var(--color-surface));
   --color-row-selected: color-mix(in oklab, var(--color-brand) 9%, var(--color-surface));
 
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.04);
   --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.04);
   --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25), 0 4px 8px -4px rgb(15 23 42 / 0.08);
+
+  /* Structural shadows */
+  --shadow-sidebar: 2px 0 16px -4px rgb(15 23 42 / 0.10), 1px 0 4px -2px rgb(15 23 42 / 0.06);
+  --shadow-header: 0 1px 0 0 var(--color-line), 0 2px 8px -2px rgb(15 23 42 / 0.06), 0 4px 16px -8px rgb(15 23 42 / 0.04);
+  --shadow-modal: 0 20px 50px -12px rgb(15 23 42 / 0.30), 0 8px 24px -8px rgb(15 23 42 / 0.12), 0 0 0 1px rgb(15 23 42 / 0.06);
+  --shadow-drawer: 4px 0 40px -8px rgb(15 23 42 / 0.22), 2px 0 12px -4px rgb(15 23 42 / 0.10), -1px 0 0 0 var(--color-line);
 
   --animate-fade-in: fade-in 140ms ease-out;
   --animate-slide-up: slide-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1);

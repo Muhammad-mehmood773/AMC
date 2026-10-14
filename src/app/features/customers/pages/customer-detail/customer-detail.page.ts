@@ -45,6 +45,7 @@ import { TRANSACTION_BLOCKED_CUSTOMER_STATUSES } from '../../data/customer-site.
 import { CustomerLookupsStore } from '../../data/lookups.store';
 import { type HandoffAction, ModuleHandoff } from '../../data/module-handoff.service';
 import { CUSTOMER_STATUS_TONE, PRIORITY_TONE, SITE_STATUS_TONE } from '../../models/display';
+import { trackRecentCustomer } from '../customer-list/customer-list.page';
 import type { SiteListItem } from '../../models/site.model';
 
 const TABS = [
@@ -303,6 +304,11 @@ export class CustomerDetailPage {
           void this.router.navigate([], { queryParams: { action: null }, queryParamsHandling: 'merge', replaceUrl: true }),
         );
       }
+    });
+    // #35 Track recently viewed
+    effect(() => {
+      const c = this.c();
+      if (c) untracked(() => trackRecentCustomer({ id: c.id, name: c.name, code: c.code, status: c.status }));
     });
     // Load quick notes whenever customer changes.
     effect(() => {

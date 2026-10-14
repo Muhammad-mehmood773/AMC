@@ -21,7 +21,7 @@ import { Icon } from '@shared/ui/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class:
-      'sticky top-0 z-20 block border-b border-line bg-surface/85 backdrop-blur-md supports-[backdrop-filter]:bg-surface/75',
+      'sticky top-0 z-20 block bg-surface/90 backdrop-blur-md shadow-[var(--shadow-header)] supports-[backdrop-filter]:bg-surface/80',
     '(document:keydown)': 'onShortcut($event)',
   },
   template: `

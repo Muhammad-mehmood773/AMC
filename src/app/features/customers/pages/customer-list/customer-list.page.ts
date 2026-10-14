@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   computed,
   inject,
   input,
@@ -16,7 +17,7 @@ import { LookupValuesStore } from '@shared/lookups/lookup-values.store';
 import { toOptions } from '@shared/models/select-option';
 import type { MenuItem } from '@shared/ui/action-menu';
 import { Avatar } from '@shared/ui/avatar';
-import { type BulkAction, type DataColumn, DataTable, type RowAction } from '@shared/ui/data-table';
+import { type BulkAction, type DataColumn, DataTable, type RowAction, type SortState } from '@shared/ui/data-table';
 import { Dialog } from '@shared/ui/dialog';
 import { FilterBar } from '@shared/ui/filter-bar';
 import { Icon } from '@shared/ui/icon';
@@ -27,6 +28,39 @@ import { downloadCsv, timestampedName } from '@shared/utils/file';
 import { type FilterField, type FilterValues, matchesAny, withinRange } from '@shared/utils/filters';
 import { countryFlag } from '@shared/utils/country-flag';
 import { firstValueFrom } from 'rxjs';
+
+// ── Saved filter preset type ─────────────────────────────────────
+interface FilterPreset {
+  readonly id: string;
+  readonly name: string;
+  readonly search: string;
+  readonly filters: FilterValues;
+}
+
+// ── Recently viewed entry ────────────────────────────────────────
+export interface RecentlyViewed {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string;
+  readonly status: string;
+  readonly ts: number;
+}
+
+const RECENT_KEY = 'amc.recently-viewed';
+const PRESETS_KEY = 'amc.filter-presets';
+const SORT_KEY = 'amc.customers.sort';
+const MAX_RECENT = 8;
+
+export function trackRecentCustomer(entry: Omit<RecentlyViewed, 'ts'>): void {
+  try {
+    const existing: RecentlyViewed[] = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    const updated = [
+      { ...entry, ts: Date.now() },
+      ...existing.filter((e) => e.id !== entry.id),
+    ].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  } catch { /* ignore */ }
+}
 import { ImportButton } from '../../components/import-button';
 import { CustomerApi } from '../../data/customer-site.api';
 import { LOOKUP } from '../../data/customer-site.lookups';
@@ -76,9 +110,74 @@ export class CustomerListPage {
   protected readonly customers = rxResource({ stream: () => this.api.list() });
   protected readonly rows = computed(() => (this.customers.hasValue() ? this.customers.value() : []));
 
+  // ── #32 Sort persistence ─────────────────────────────────────
+  protected readonly sortState = signal<SortState | null>(
+    (() => { try { return JSON.parse(localStorage.getItem(SORT_KEY) ?? 'null') as SortState | null; } catch { return null; } })()
+  );
+
+  // ── #35 Recently viewed ──────────────────────────────────────
+  protected readonly recentlyViewed = signal<RecentlyViewed[]>(
+    (() => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as RecentlyViewed[]; } catch { return []; } })()
+  );
+  protected readonly showRecent = signal(false);
+
+  // ── #30 Saved filter presets ─────────────────────────────────
+  protected readonly filterPresets = signal<FilterPreset[]>(
+    (() => { try { return JSON.parse(localStorage.getItem(PRESETS_KEY) ?? '[]') as FilterPreset[]; } catch { return []; } })()
+  );
+  protected readonly presetName = signal('');
+  protected readonly showPresets = signal(false);
+
+  // ── #34 Grouping ─────────────────────────────────────────────
+  protected readonly groupBy = signal<'none' | 'type' | 'region'>('none');
+
+  protected readonly grouped = computed(() => {
+    const by = this.groupBy();
+    const rows = this.filtered();
+    if (by === 'none') return null;
+    const map = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = by === 'type' ? (r.type || 'Other') : (r.address.region || 'Other');
+      const arr = map.get(key) ?? [];
+      arr.push(r);
+      map.set(key, arr);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  });
+
+  protected readonly collapsedGroups = signal<Set<string>>(new Set());
+  protected toggleGroup(key: string): void {
+    this.collapsedGroups.update((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+
+  // ── #33 Keyboard shortcuts ───────────────────────────────────
+  protected readonly searchInputRef = signal<HTMLInputElement | null>(null);
+
+  @HostListener('document:keydown', ['$event'])
+  onKey(e: KeyboardEvent): void {
+    const tag = (e.target as HTMLElement).tagName;
+    const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable;
+    if (e.key === '/' && !inInput) {
+      e.preventDefault();
+      this.searchInputRef()?.focus();
+    }
+    if (e.key === 'n' && !inInput && !e.ctrlKey && !e.metaKey) {
+      void this.router.navigate(['/app/customers/new']);
+    }
+    if (e.key === 'Escape' && inInput) {
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
   constructor() {
     effect(() => {
       localStorage.setItem('amc.customers.view', this.viewMode());
+    });
+    // #32 persist sort
+    effect(() => {
+      const s = this.sortState();
+      if (s) localStorage.setItem(SORT_KEY, JSON.stringify(s));
+      else localStorage.removeItem(SORT_KEY);
     });
   }
 
@@ -188,6 +287,33 @@ export class CustomerListPage {
   protected clearFilters(): void {
     this.search.set('');
     this.filters.set({});
+  }
+
+  // ── #30 Preset helpers ───────────────────────────────────────
+  protected savePreset(): void {
+    const name = this.presetName().trim();
+    if (!name) return;
+    const preset: FilterPreset = { id: crypto.randomUUID(), name, search: this.search(), filters: this.filters() };
+    this.filterPresets.update((p) => [preset, ...p.filter((x) => x.name !== name)]);
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(this.filterPresets())); } catch { /* ignore */ }
+    this.presetName.set('');
+    this.notify.success(`Preset "${name}" saved.`);
+  }
+
+  protected loadPreset(preset: FilterPreset): void {
+    this.search.set(preset.search);
+    this.filters.set(preset.filters);
+    this.showPresets.set(false);
+  }
+
+  protected deletePreset(id: string): void {
+    this.filterPresets.update((p) => p.filter((x) => x.id !== id));
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(this.filterPresets())); } catch { /* ignore */ }
+  }
+
+  // ── #35 Recently viewed helpers ──────────────────────────────
+  protected refreshRecent(): void {
+    try { this.recentlyViewed.set(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as RecentlyViewed[]); } catch { /* ignore */ }
   }
 
   protected async onAction({ id, row }: RowAction<CustomerListItem>): Promise<void> {

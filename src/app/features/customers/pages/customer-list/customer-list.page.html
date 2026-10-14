@@ -12,13 +12,86 @@
       <amc-icon name="download" />
       <span class="hidden sm:inline">Export</span>
     </button>
-    <a routerLink="/app/customers/new" class="amc-btn-primary">
+    <a routerLink="/app/customers/new" class="amc-btn-primary" title="New customer (N)">
       <amc-icon name="plus" />
       Add Customer
     </a>
   </amc-page-header>
 
+  <!-- #35 Recently viewed bar -->
+  @if (recentlyViewed().length > 0) {
+    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+      <span class="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+        <amc-icon name="clock" [size]="12" /> Recently viewed
+      </span>
+      @for (r of recentlyViewed().slice(0, 6); track r.id) {
+        <a
+          [routerLink]="['/app/customers', r.id]"
+          class="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink hover:border-brand hover:text-brand"
+        >
+          <span class="h-1.5 w-1.5 rounded-full"
+            [class]="r.status === 'Active' ? 'bg-success' : r.status === 'Inactive' ? 'bg-ink-subtle' : 'bg-warn'"></span>
+          {{ r.name }}
+        </a>
+      }
+    </div>
+  }
+
   <section class="amc-card overflow-hidden">
+    <!-- #30 Presets + #34 Grouping toolbar -->
+    <div class="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
+      <!-- #30 Saved presets -->
+      <div class="relative">
+        <button type="button" class="amc-btn-ghost amc-btn-sm gap-1.5" (click)="showPresets.set(!showPresets()); refreshRecent()">
+          <amc-icon name="bookmark" [size]="13" />
+          Presets
+          @if (filterPresets().length > 0) {
+            <span class="rounded-full bg-brand-subtle px-1.5 text-[10px] font-semibold text-brand">{{ filterPresets().length }}</span>
+          }
+        </button>
+        @if (showPresets()) {
+          <div class="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-line bg-surface shadow-lg">
+            <div class="border-b border-line px-3 py-2.5">
+              <p class="text-xs font-semibold text-ink">Saved Presets</p>
+            </div>
+            @if (filterPresets().length === 0) {
+              <p class="px-3 py-3 text-xs text-ink-muted">No presets saved yet.</p>
+            } @else {
+              <ul class="max-h-48 overflow-y-auto p-1.5">
+                @for (p of filterPresets(); track p.id) {
+                  <li class="flex items-center gap-1">
+                    <button type="button" class="flex-1 truncate rounded-lg px-2 py-1.5 text-left text-xs text-ink hover:bg-surface-sunken" (click)="loadPreset(p)">{{ p.name }}</button>
+                    <button type="button" class="rounded p-1 text-ink-subtle hover:text-danger" (click)="deletePreset(p.id)" title="Delete preset"><amc-icon name="x" [size]="11" /></button>
+                  </li>
+                }
+              </ul>
+            }
+            <div class="flex gap-1.5 border-t border-line p-2">
+              <input class="amc-input flex-1 text-xs" placeholder="Preset name…" [value]="presetName()" (input)="presetName.set($any($event.target).value)" (keydown.enter)="savePreset()" maxlength="40" />
+              <button type="button" class="amc-btn-primary amc-btn-sm shrink-0" (click)="savePreset()" [disabled]="!presetName().trim()">Save</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- #34 Group by -->
+      <div class="flex items-center gap-1.5 rounded-lg border border-line px-2 py-1">
+        <amc-icon name="layers" [size]="12" class="text-ink-muted" />
+        <span class="text-xs text-ink-muted">Group:</span>
+        <select class="border-0 bg-transparent text-xs text-ink outline-none" [value]="groupBy()" (change)="groupBy.set($any($event.target).value)">
+          <option value="none">None</option>
+          <option value="type">By Type</option>
+          <option value="region">By Region</option>
+        </select>
+      </div>
+
+      <!-- #33 Keyboard hint -->
+      <span class="ml-auto hidden items-center gap-2 text-[10px] text-ink-subtle xl:flex">
+        <kbd class="rounded border border-line bg-surface-sunken px-1.5 py-0.5 font-mono">/</kbd> Search
+        <kbd class="rounded border border-line bg-surface-sunken px-1.5 py-0.5 font-mono">N</kbd> New customer
+      </span>
+    </div>
+
     <div class="flex items-center gap-2 border-b border-line p-3 sm:p-4">
       <div class="flex-1">
         <amc-filter-bar
@@ -50,6 +123,39 @@
     </div>
 
     @if (viewMode() === 'table') {
+      @if (grouped()) {
+        <!-- #34 Grouped table view -->
+        @for (group of grouped()!; track group[0]) {
+          <div class="border-b border-line last:border-0">
+            <button type="button" class="flex w-full items-center gap-2 bg-surface-sunken px-4 py-2.5 text-left hover:bg-surface-muted" (click)="toggleGroup(group[0])">
+              <amc-icon [name]="collapsedGroups().has(group[0]) ? 'chevron-right' : 'chevron-down'" [size]="13" class="text-ink-muted" />
+              <span class="text-sm font-semibold text-ink">{{ group[0] }}</span>
+              <span class="rounded-full bg-brand-subtle px-2 py-0.5 text-xs font-medium text-brand">{{ group[1].length }}</span>
+            </button>
+            @if (!collapsedGroups().has(group[0])) {
+              <amc-data-table
+                [tableId]="'customers-' + group[0]"
+                [entity]="{ singular: 'customer', plural: 'customers' }"
+                [rows]="group[1]"
+                [columns]="columns"
+                [trackBy]="trackById"
+                [loading]="customers.isLoading()"
+                [actions]="rowActions"
+                [selectable]="true"
+                [bulkActions]="bulkActions"
+                [(selected)]="selected"
+                [(sort)]="sortState"
+                [toolbar]="false"
+                emptyIcon="building"
+                emptyTitle="No customers"
+                emptyMessage=""
+                (action)="onAction($event)"
+                (bulkAction)="onBulk($event)"
+              />
+            }
+          </div>
+        }
+      } @else {
       <amc-data-table
         tableId="customers"
         [entity]="{ singular: 'customer', plural: 'customers' }"
@@ -63,6 +169,7 @@
         [selectable]="true"
         [bulkActions]="bulkActions"
         [(selected)]="selected"
+        [(sort)]="sortState"
         emptyIcon="building"
         [emptyTitle]="rows().length ? 'No customers match your filters' : 'No customers yet'"
         [emptyMessage]="rows().length ? 'Try a different search term or clear the filters.' : 'Create your first customer to start managing sites, contacts and agreements.'"
@@ -78,6 +185,7 @@
           }
         </ng-container>
       </amc-data-table>
+      } <!-- end @else (no grouping) -->
     } @else {
       <!-- Card / Grid view -->
       @if (customers.error()) {

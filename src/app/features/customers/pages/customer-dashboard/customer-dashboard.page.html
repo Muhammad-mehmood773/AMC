@@ -85,6 +85,26 @@
     </section>
   }
 
+  <!-- #40 Alert / Notification Panel -->
+  @if (alerts().length > 0 && isVisible('alerts')) {
+    <section class="space-y-2 animate-fade-in" aria-label="Alerts">
+      @for (alert of alerts(); track alert.message) {
+        <div
+          class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
+          [class]="alert.type === 'danger' ? 'border-danger/30 bg-danger-subtle text-danger'
+                 : alert.type === 'warn'   ? 'border-warn/30 bg-warn-subtle text-warn'
+                 : 'border-info/30 bg-info-subtle text-info'"
+        >
+          <amc-icon [name]="alert.type === 'danger' ? 'alert-triangle' : alert.type === 'warn' ? 'clock' : 'info'" [size]="16" class="mt-0.5 shrink-0" />
+          <p class="flex-1">{{ alert.message }}</p>
+          @if (alert.link) {
+            <a [routerLink]="alert.link" class="shrink-0 underline underline-offset-2 hover:opacity-80">View</a>
+          }
+        </div>
+      }
+    </section>
+  }
+
   @if (dashboard.error()) {
     <div class="amc-card">
       <amc-error-state
@@ -195,9 +215,29 @@
     </section>
     } <!-- end @if kpis -->
 
+    <!-- #39 Period Comparison -->
+    @if (comparison() && isVisible('comparison')) {
+      <section class="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Period comparison">
+        @for (row of comparison()!; track row.label) {
+          <div class="amc-card flex flex-col gap-1 p-4">
+            <p class="text-xs font-medium text-ink-muted">{{ row.label }}</p>
+            <p class="text-xl font-bold tabular-nums text-ink">
+              {{ row.isCurrency ? formatCurrency(row.cur, 'SAR', true) : row.cur }}
+            </p>
+            <div class="flex items-center gap-1.5 text-xs">
+              <amc-icon name="trending-up" [size]="12" class="text-success" />
+              <span class="font-semibold text-success">{{ row.pct }}</span>
+              <span class="text-ink-subtle">vs prev period</span>
+            </div>
+            <p class="text-xs text-ink-subtle">Prev: {{ row.isCurrency ? formatCurrency(row.prev, 'SAR', true) : row.prev }}</p>
+          </div>
+        }
+      </section>
+    }
+
     <!-- Charts row -->
     @if (data() && isVisible('charts')) {
-      <section class="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Customer charts">
+      <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Customer charts">
         <amc-panel title="Customer Status" description="Distribution by status" icon="pie-chart" class="min-w-0">
           <div class="px-4 pb-4 pt-2">
             <amc-mini-chart
@@ -220,11 +260,80 @@
             />
           </div>
         </amc-panel>
+        <!-- #36 Customer types pie -->
+        @if (typeChartLabels().length > 0) {
+          <amc-panel title="Customer Types" description="Distribution by customer type" icon="tag" class="min-w-0">
+            <div class="px-4 pb-4 pt-2">
+              <amc-mini-chart
+                type="donut"
+                [labels]="typeChartLabels()"
+                [values]="typeChartValues()"
+                [height]="200"
+                ariaLabel="Customer type distribution chart"
+              />
+            </div>
+          </amc-panel>
+        }
       </section>
     }
 
     <!-- Widgets -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <!-- #37 Country breakdown -->
+      @if (isVisible('country')) {
+      <amc-panel title="Country Distribution" description="Customers by country" icon="globe" [padded]="false">
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else {
+          <ul class="space-y-3 p-4 sm:p-5">
+            @for (row of countryBreakdown(); track row.country) {
+              <li>
+                <div class="flex items-center justify-between gap-2 text-sm">
+                  <span class="font-medium text-ink">{{ row.country }}</span>
+                  <span class="tabular-nums text-ink-muted">{{ row.count }}</span>
+                </div>
+                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                  <div class="h-full rounded-full bg-brand" [style.width.%]="row.pct"></div>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+      } <!-- end country -->
+
+      <!-- #38 Top customers by outstanding -->
+      @if (isVisible('top-customers')) {
+      <amc-panel title="Top Customers" description="Highest outstanding balances" icon="trophy" [padded]="false">
+        @if (!data()) {
+          <ng-container *ngTemplateOutlet="listSkeleton" />
+        } @else if (topCustomers().length === 0) {
+          <amc-empty-state [compact]="true" icon="check-circle" title="No outstanding amounts" message="All balances are settled." />
+        } @else {
+          <ul class="divide-y divide-line">
+            @for (row of topCustomers(); track row.customerId; let i = $index) {
+              <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                  [class]="i === 0 ? 'bg-warn-subtle text-warn' : i === 1 ? 'bg-surface-sunken text-ink-muted' : 'bg-surface-sunken text-ink-subtle'">
+                  {{ i + 1 }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <a [routerLink]="['/app/customers', row.customerId]" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ row.customerName }}</a>
+                  <p class="text-xs text-ink-muted">{{ row.invoices }} invoice{{ row.invoices === 1 ? '' : 's' }}</p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-semibold tabular-nums">{{ formatCurrency(row.amount, 'SAR', true) }}</p>
+                  @if (row.overdue > 0) {
+                    <p class="text-xs text-danger">{{ formatCurrency(row.overdue, 'SAR', true) }} overdue</p>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </amc-panel>
+      } <!-- end top-customers -->
+
       @if (isVisible('expiring'))  {
       <amc-panel
         class="lg:col-span-2"

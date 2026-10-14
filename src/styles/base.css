@@ -48,8 +48,12 @@
     --color-info-subtle: color-mix(in oklab, var(--color-info) 13%, var(--color-surface));
     --color-accent: color-mix(in oklab, var(--amc-accent, #7c3aed) 62%, white);
     --color-accent-subtle: color-mix(in oklab, var(--color-accent) 13%, var(--color-surface));
-    --shadow-card: 0 0 0 0 transparent;
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 0 0 1px rgb(255 255 255 / 0.04);
     --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.04);
+    --shadow-sidebar: 2px 0 24px -4px rgb(0 0 0 / 0.45), 1px 0 0 0 var(--color-line);
+    --shadow-header: 0 1px 0 0 var(--color-line), 0 2px 16px -4px rgb(0 0 0 / 0.4);
+    --shadow-modal: 0 24px 60px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
+    --shadow-drawer: -4px 0 40px -4px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   }
 
   [data-contrast='high'] {
