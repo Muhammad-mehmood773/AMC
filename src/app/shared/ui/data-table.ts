@@ -386,11 +386,11 @@ function loadPrefs(id: string): TablePrefs {
         <!-- Stacked card layout (below md) -->
         <ul class="divide-y divide-line md:hidden">
           @for (row of pagedRows(); track trackBy()(row)) {
-            <li class="flex gap-3 px-4 transition-colors" [class.bg-row-selected]="isSelected(row)">
+            <li class="flex items-start gap-3 px-4 py-3.5 transition-colors" [class.bg-row-selected]="isSelected(row)">
               @if (selectable()) {
                 <input
                   type="checkbox"
-                  class="amc-checkbox mt-1"
+                  class="amc-checkbox mt-0.5 h-5 w-5 shrink-0"
                   [attr.aria-label]="'Select row ' + trackBy()(row)"
                   [checked]="isSelected(row)"
                   (change)="toggleRow(row)"
@@ -398,11 +398,11 @@ function loadPrefs(id: string): TablePrefs {
               }
               @if (titleColumn(); as col) {
                 @if (col.avatar) {
-                  <amc-avatar [name]="text(col, row)" />
+                  <amc-avatar [name]="text(col, row)" size="md" class="shrink-0" />
                 }
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                       @if (col.link?.(row); as href) {
                         <a [routerLink]="href" class="block truncate text-sm font-semibold text-ink hover:text-brand">{{ text(col, row) }}</a>
                       } @else {
@@ -414,15 +414,15 @@ function loadPrefs(id: string): TablePrefs {
                     </div>
                     @if (badgeColumn(); as badge) {
                       @if (badge.value(row)) {
-                        <amc-status-badge [label]="text(badge, row)" [tone]="badge.tone ? badge.tone(row) : 'neutral'" />
+                        <amc-status-badge [label]="text(badge, row)" [tone]="badge.tone ? badge.tone(row) : 'neutral'" class="shrink-0" />
                       }
                     }
                   </div>
                   @if (metaColumns().length) {
-                    <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    <dl class="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2">
                       @for (meta of metaColumns(); track meta.key) {
                         <div class="min-w-0">
-                          <dt class="text-[11px] text-ink-subtle">{{ meta.label }}</dt>
+                          <dt class="text-[11px] font-medium text-ink-subtle">{{ meta.label }}</dt>
                           <dd class="truncate text-xs text-ink">{{ text(meta, row) || '—' }}</dd>
                         </div>
                       }
@@ -431,7 +431,7 @@ function loadPrefs(id: string): TablePrefs {
                 </div>
               }
               @if (actions(); as menu) {
-                <amc-action-menu class="-mr-1 self-start" [items]="menu(row)" (action)="action.emit({ id: $event, row })" />
+                <amc-action-menu class="shrink-0" [items]="menu(row)" (action)="action.emit({ id: $event, row })" />
               }
             </li>
           }

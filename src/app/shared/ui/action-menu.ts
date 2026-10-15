@@ -34,7 +34,7 @@ export interface MenuItem {
       [class]="
         label()
           ? 'amc-btn-secondary'
-          : 'amc-btn-icon h-8 w-8 data-[open=true]:bg-surface-sunken data-[open=true]:text-ink'
+          : 'amc-btn-icon h-10 w-10 sm:h-8 sm:w-8 data-[open=true]:bg-surface-sunken data-[open=true]:text-ink'
       "
       [attr.data-open]="open()"
       [attr.aria-label]="label() || ariaLabel()"
@@ -59,7 +59,7 @@ export interface MenuItem {
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+            class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 sm:py-2 text-left text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45"
             [class]="
               item.danger
                 ? 'text-danger hover:bg-danger-subtle focus:bg-danger-subtle'

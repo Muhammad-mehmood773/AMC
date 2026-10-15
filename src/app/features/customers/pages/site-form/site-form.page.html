@@ -33,179 +33,292 @@
       }
     </div>
   } @else {
-    <form [formGroup]="form" class="space-y-5" novalidate (ngSubmit)="save('save')">
-      <!-- A. Site information -->
-      @let i = form.controls.info;
-      <amc-panel title="Site information" description="Identity, ownership and status" icon="map-pin" formGroupName="info">
-        <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field
-            label="Site Code"
-            for="sf-code"
-            [control]="i.controls.code"
-            [help]="help.code"
-            [messages]="codeMessages"
-            [hint]="editing ? 'Codes cannot be changed after creation.' : 'Must be unique across the organization.'"
-          >
-            <input id="sf-code" class="amc-input font-mono uppercase" formControlName="code" autocomplete="off" />
-          </amc-form-field>
-          <amc-form-field label="Site Name" for="sf-name" [control]="i.controls.name" class="xl:col-span-2">
-            <input id="sf-name" class="amc-input" formControlName="name" placeholder="e.g. KFSMG Main Hospital" />
-          </amc-form-field>
-          <amc-form-field
-            label="Customer"
-            for="sf-customer"
-            [control]="i.controls.customerId"
-            [help]="help.customer"
-            [hint]="editing ? 'A site cannot be moved to another customer.' : 'Only active customers can receive new sites.'"
-          >
-            <amc-select inputId="sf-customer" formControlName="customerId" [options]="customerOptions()" placeholder="Select customer…" (selectionChange)="applyCustomerDefaults()" />
-          </amc-form-field>
-          <amc-form-field label="Site Type" for="sf-type" [control]="i.controls.type" [help]="help.type">
-            <amc-lookup-select inputId="sf-type" formControlName="type" [type]="lookupTypes.siteType" />
-          </amc-form-field>
-          <amc-form-field label="Site Status" for="sf-status" [control]="i.controls.status" [help]="help.status">
-            <amc-select inputId="sf-status" formControlName="status" [options]="statusOptions" />
-          </amc-form-field>
-        </div>
-      </amc-panel>
+    <form [formGroup]="form" class="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]" novalidate (ngSubmit)="save('save')">
 
-      <!-- B. Location -->
-      <amc-panel title="Location information" description="Maintained independently from the customer's primary address" icon="globe">
-        <button
-          panelActions
-          type="button"
-          class="amc-btn-secondary amc-btn-sm"
-          [disabled]="!selectedCustomer()"
-          (click)="copyCustomerAddress()"
+      <!-- Sticky section sidebar (desktop only) -->
+      <nav class="hidden lg:block" aria-label="Form sections">
+        <ul class="sticky top-24 space-y-0.5">
+          @for (section of sections; track section.id; let i = $index) {
+            <li>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+                (click)="scrollTo(section.id)"
+              >
+                <amc-icon [name]="section.icon" class="text-ink-subtle" />
+                <span class="flex-1 truncate">{{ section.label }}</span>
+                @if (sectionProgress()[i] === 100) {
+                  <span class="h-2 w-2 rounded-full bg-success" aria-label="Complete"></span>
+                } @else if (section.group && sectionInvalid(section.group)) {
+                  <span class="h-2 w-2 rounded-full bg-danger" aria-label="Has errors"></span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <!-- Main content -->
+      <div class="min-w-0 space-y-5">
+
+        <!-- Progress indicator -->
+        <div class="amc-card px-4 py-3">
+          <div class="mb-2 flex items-center justify-between">
+            <p class="text-xs font-medium text-ink-muted">Form completion</p>
+            <p class="text-xs font-semibold text-ink">{{ overallProgress() }}%</p>
+          </div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              [class]="overallProgress() === 100 ? 'bg-success' : overallProgress() >= 60 ? 'bg-brand' : 'bg-warn'"
+              [style.width.%]="overallProgress()"
+            ></div>
+          </div>
+          <div class="mt-3 grid grid-cols-3 gap-1 sm:grid-cols-6">
+            @for (section of sections; track section.id; let i = $index) {
+              <button
+                type="button"
+                class="flex flex-col items-center gap-1 rounded-lg p-1.5 text-center transition-colors hover:bg-surface"
+                (click)="scrollTo(section.id)"
+                [title]="section.label"
+              >
+                <span
+                  class="flex h-7 w-7 items-center justify-center rounded-full text-[11px]"
+                  [class]="sectionProgress()[i] === 100
+                    ? 'bg-success/15 text-success'
+                    : section.group && sectionInvalid(section.group)
+                    ? 'bg-danger/15 text-danger'
+                    : 'bg-surface-sunken text-ink-muted'"
+                >
+                  @if (sectionProgress()[i] === 100) {
+                    <amc-icon name="check" [size]="12" />
+                  } @else if (section.group && sectionInvalid(section.group)) {
+                    <amc-icon name="alert-triangle" [size]="12" />
+                  } @else {
+                    {{ i + 1 }}
+                  }
+                </span>
+                <span class="hidden truncate text-[10px] text-ink-muted sm:block">{{ section.label.split(' ')[0] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- A. Site information -->
+        @let i = form.controls.info;
+        <amc-panel
+          id="section-info"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Site information"
+          description="Identity, ownership and status"
+          icon="map-pin"
+          formGroupName="info"
         >
-          <amc-icon name="copy" [size]="14" />
-          Copy customer address
-        </button>
-        <amc-address-fields [group]="form.controls.location" idPrefix="sf" addressLabel="Full Address" [addressHelp]="help.fullAddress" />
-      </amc-panel>
-
-      <!-- B2. Timezone -->
-      <amc-panel title="Time zone" description="IANA time zone for this site — used to schedule field-service visits correctly across regions" icon="clock">
-        <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field label="Site Time Zone" for="sf-tz" [control]="form.controls.timezone" hint="Leave empty to use the organisation's default time zone.">
-            <amc-select inputId="sf-tz" formControlName="timezone" [options]="timezoneOptions" placeholder="Use organisation default" [clearable]="true" />
-          </amc-form-field>
-        </div>
-      </amc-panel>
-
-      <!-- C. Site operations -->
-      @let o = form.controls.operations;
-      <amc-panel title="Site operations" description="On-site contacts, hours and access" icon="clock" formGroupName="operations">
-        <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field label="Site Contact" for="sf-contact" [control]="o.controls.siteContactId" [help]="help.siteContact" [hint]="selectedCustomer() ? '' : 'Select a customer first.'">
-            <amc-select inputId="sf-contact" formControlName="siteContactId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
-          </amc-form-field>
-          <amc-form-field label="Site Manager" for="sf-manager" [control]="o.controls.siteManagerId">
-            <amc-select inputId="sf-manager" formControlName="siteManagerId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
-          </amc-form-field>
-          <amc-form-field label="Emergency Contact" for="sf-emergency" [control]="o.controls.emergencyContactId">
-            <amc-select inputId="sf-emergency" formControlName="emergencyContactId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
-          </amc-form-field>
-          <amc-form-field label="Operating Hours" for="sf-ophours" [control]="o.controls.operatingHours" hint="When the site is open.">
-            <input id="sf-ophours" class="amc-input" formControlName="operatingHours" placeholder="e.g. Sun–Thu 08:00–17:00" />
-          </amc-form-field>
-          <amc-form-field label="Service Hours" for="sf-svchours" [control]="o.controls.serviceHours" hint="When technicians may work on site.">
-            <input id="sf-svchours" class="amc-input" formControlName="serviceHours" placeholder="e.g. Sun–Thu 07:00–19:00" />
-          </amc-form-field>
-          <div class="hidden xl:block"></div>
-          <amc-form-field label="Access Requirements" for="sf-access" [control]="o.controls.accessRequirements" class="sm:col-span-1 xl:col-span-1">
-            <textarea id="sf-access" class="amc-textarea min-h-20" formControlName="accessRequirements" placeholder="Gate passes, escorts, PPE…"></textarea>
-          </amc-form-field>
-          <amc-form-field label="Security Requirements" for="sf-security" [control]="o.controls.securityRequirements" class="sm:col-span-1 xl:col-span-2">
-            <textarea id="sf-security" class="amc-textarea min-h-20" formControlName="securityRequirements" placeholder="Background checks, tool inventory, photography rules…"></textarea>
-          </amc-form-field>
-        </div>
-        @if (selectedCustomer() && contactOptions().length === 0) {
-          <p class="mt-3 text-xs text-ink-muted">This customer has no active contacts yet. Use <span class="font-medium">Save &amp; Add Contact</span> to add site contacts.</p>
-        }
-      </amc-panel>
-
-      <!-- D. Service information -->
-      @let s = form.controls.service;
-      <amc-panel
-        title="Service information"
-        [description]="editing ? 'Service defaults for requests at this site' : 'Defaults inherited from the customer; adjust if needed'"
-        icon="sliders"
-        formGroupName="service"
-      >
-        <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <amc-form-field label="Default SLA" for="sf-sla" [control]="s.controls.defaultSlaId" [help]="help.defaultSla">
-            <amc-select inputId="sf-sla" formControlName="defaultSlaId" [options]="lookups.slaOptions()" placeholder="No default SLA" [clearable]="true" />
-          </amc-form-field>
-          <amc-form-field label="Service Territory" for="sf-territory" [control]="s.controls.serviceTerritoryId">
-            <amc-select inputId="sf-territory" formControlName="serviceTerritoryId" [options]="territoryOptions()" placeholder="Not set" [clearable]="true" />
-          </amc-form-field>
-          <amc-form-field label="Service Priority" for="sf-priority" [control]="s.controls.servicePriority">
-            <amc-select inputId="sf-priority" formControlName="servicePriority" [options]="priorityOptions" />
-          </amc-form-field>
-          <div class="sm:col-span-2">
-            <span class="amc-label mb-1.5">Preferred Visit Days</span>
-            <amc-chip-select formControlName="preferredVisitDays" [options]="weekdayOptions" ariaLabel="Preferred visit days" />
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field
+              label="Site Code"
+              for="sf-code"
+              [control]="i.controls.code"
+              [help]="help.code"
+              [messages]="codeMessages"
+              [hint]="editing ? 'Codes cannot be changed after creation.' : 'Must be unique across the organization.'"
+            >
+              <input id="sf-code" class="amc-input font-mono uppercase" formControlName="code" autocomplete="off" />
+            </amc-form-field>
+            <amc-form-field label="Site Name" for="sf-name" [control]="i.controls.name" class="xl:col-span-2">
+              <input id="sf-name" class="amc-input" formControlName="name" placeholder="e.g. KFSMG Main Hospital" />
+            </amc-form-field>
+            <amc-form-field
+              label="Customer"
+              for="sf-customer"
+              [control]="i.controls.customerId"
+              [help]="help.customer"
+              [hint]="editing ? 'A site cannot be moved to another customer.' : 'Only active customers can receive new sites.'"
+            >
+              <amc-select inputId="sf-customer" formControlName="customerId" [options]="customerOptions()" placeholder="Select customer…" (selectionChange)="applyCustomerDefaults()" />
+            </amc-form-field>
+            <amc-form-field label="Site Type" for="sf-type" [control]="i.controls.type" [help]="help.type">
+              <amc-lookup-select inputId="sf-type" formControlName="type" [type]="lookupTypes.siteType" />
+            </amc-form-field>
+            <amc-form-field label="Site Status" for="sf-status" [control]="i.controls.status" [help]="help.status">
+              <amc-select inputId="sf-status" formControlName="status" [options]="statusOptions" />
+            </amc-form-field>
           </div>
-          <amc-form-field label="Preferred Visit Time" for="sf-visittime" [control]="s.controls.preferredVisitTime">
-            <amc-select inputId="sf-visittime" formControlName="preferredVisitTime" [options]="visitTimeOptions" placeholder="No preference" [clearable]="true" />
-          </amc-form-field>
-          <div class="sm:col-span-2 xl:col-span-3">
-            <amc-switch
-              formControlName="accessNoticeRequired"
-              inputId="sf-notice"
-              label="Access notice required"
-              description="The site must be notified in advance before any technician visit."
-            />
-          </div>
-        </div>
-      </amc-panel>
+        </amc-panel>
 
-      <!-- E. Site notes -->
-      @let n = form.controls.notes;
-      <amc-panel title="Site notes" description="Instructions for visits and internal context" icon="sticky-note" formGroupName="notes">
-        <div class="grid grid-cols-1 gap-x-5 gap-y-4 lg:grid-cols-3">
-          <amc-form-field label="Site Instructions" for="sf-sinstr" [control]="n.controls.siteInstructions" hint="General instructions for anyone visiting.">
-            <textarea id="sf-sinstr" class="amc-textarea" formControlName="siteInstructions"></textarea>
-          </amc-form-field>
-          <amc-form-field label="Technician Instructions" for="sf-tinstr" [control]="n.controls.technicianInstructions" [help]="help.technicianInstructions">
-            <textarea id="sf-tinstr" class="amc-textarea" formControlName="technicianInstructions"></textarea>
-          </amc-form-field>
-          <amc-form-field label="Internal Notes" for="sf-inotes" [control]="n.controls.internalNotes" hint="Visible to internal users only.">
-            <textarea id="sf-inotes" class="amc-textarea" formControlName="internalNotes"></textarea>
-          </amc-form-field>
-        </div>
-      </amc-panel>
-
-      <div class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div class="flex items-center gap-2">
-          <p class="mr-auto hidden text-xs text-ink-muted md:block">
-            @if (form.dirty) {
-              <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-warn"></span>Unsaved changes</span>
-            } @else {
-              Fields marked <span class="text-danger">*</span> are required.
-            }
-          </p>
-          <a [routerLink]="editing ? ['/app/customers/sites', siteId()] : '/app/customers/sites'" class="amc-btn-ghost">Cancel</a>
-          <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('contact')">Save &amp; Add Contact</button>
-          <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('asset')">Save &amp; Add Asset</button>
-          <amc-action-menu
-            class="sm:hidden"
-            ariaLabel="More save options"
-            [items]="[
-              { id: 'contact', label: 'Save & Add Contact', icon: 'user-plus' },
-              { id: 'asset', label: 'Save & Add Asset', icon: 'box' },
-            ]"
-            (action)="onMoreAction($event)"
-          />
-          <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">
-            @if (saving()) {
-              <amc-spinner [size]="14" />
-            } @else {
-              <amc-icon name="save" />
-            }
-            Save
+        <!-- B. Location -->
+        <amc-panel
+          id="section-location"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Location information"
+          description="Maintained independently from the customer's primary address"
+          icon="globe"
+        >
+          <button
+            panelActions
+            type="button"
+            class="amc-btn-secondary amc-btn-sm"
+            [disabled]="!selectedCustomer()"
+            (click)="copyCustomerAddress()"
+          >
+            <amc-icon name="copy" [size]="14" />
+            Copy customer address
           </button>
+          <amc-address-fields [group]="form.controls.location" idPrefix="sf" addressLabel="Full Address" [addressHelp]="help.fullAddress" />
+        </amc-panel>
+
+        <!-- C. Time zone -->
+        <amc-panel
+          id="section-timezone"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Time zone"
+          description="IANA time zone for this site — used to schedule field-service visits correctly across regions"
+          icon="clock"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Site Time Zone" for="sf-tz" [control]="form.controls.timezone" [help]="help.timezone">
+              <amc-select inputId="sf-tz" formControlName="timezone" [options]="timezoneOptions" placeholder="Use organisation default" [clearable]="true" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- D. Site operations -->
+        @let o = form.controls.operations;
+        <amc-panel
+          id="section-operations"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Site operations"
+          description="On-site contacts, hours and access"
+          icon="sliders"
+          formGroupName="operations"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Site Contact" for="sf-contact" [control]="o.controls.siteContactId" [help]="help.siteContact" [hint]="selectedCustomer() ? '' : 'Select a customer first.'">
+              <amc-select inputId="sf-contact" formControlName="siteContactId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Site Manager" for="sf-manager" [control]="o.controls.siteManagerId" [help]="help.siteManager">
+              <amc-select inputId="sf-manager" formControlName="siteManagerId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Emergency Contact" for="sf-emergency" [control]="o.controls.emergencyContactId" [help]="help.emergencyContact">
+              <amc-select inputId="sf-emergency" formControlName="emergencyContactId" [options]="contactOptions()" placeholder="Not assigned" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Operating Hours" for="sf-ophours" [control]="o.controls.operatingHours" [help]="help.operatingHours">
+              <input id="sf-ophours" class="amc-input" formControlName="operatingHours" placeholder="e.g. Sun–Thu 08:00–17:00" />
+            </amc-form-field>
+            <amc-form-field label="Service Hours" for="sf-svchours" [control]="o.controls.serviceHours" [help]="help.serviceHours">
+              <input id="sf-svchours" class="amc-input" formControlName="serviceHours" placeholder="e.g. Sun–Thu 07:00–19:00" />
+            </amc-form-field>
+            <div class="hidden xl:block"></div>
+            <amc-form-field label="Access Requirements" for="sf-access" [control]="o.controls.accessRequirements" [help]="help.accessRequirements" class="sm:col-span-1 xl:col-span-1">
+              <textarea id="sf-access" class="amc-textarea min-h-20" formControlName="accessRequirements" placeholder="Gate passes, escorts, PPE…"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Security Requirements" for="sf-security" [control]="o.controls.securityRequirements" [help]="help.securityRequirements" class="sm:col-span-1 xl:col-span-2">
+              <textarea id="sf-security" class="amc-textarea min-h-20" formControlName="securityRequirements" placeholder="Background checks, tool inventory, photography rules…"></textarea>
+            </amc-form-field>
+          </div>
+          @if (selectedCustomer() && contactOptions().length === 0) {
+            <p class="mt-3 text-xs text-ink-muted">This customer has no active contacts yet. Use <span class="font-medium">Save &amp; Add Contact</span> to add site contacts.</p>
+          }
+        </amc-panel>
+
+        <!-- E. Service information -->
+        @let s = form.controls.service;
+        <amc-panel
+          id="section-service"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Service information"
+          [description]="editing ? 'Service defaults for requests at this site' : 'Defaults inherited from the customer; adjust if needed'"
+          icon="wrench"
+          formGroupName="service"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Default SLA" for="sf-sla" [control]="s.controls.defaultSlaId" [help]="help.defaultSla">
+              <amc-select inputId="sf-sla" formControlName="defaultSlaId" [options]="lookups.slaOptions()" placeholder="No default SLA" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Territory" for="sf-territory" [control]="s.controls.serviceTerritoryId" [help]="help.serviceTerritory">
+              <amc-select inputId="sf-territory" formControlName="serviceTerritoryId" [options]="territoryOptions()" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Priority" for="sf-priority" [control]="s.controls.servicePriority" [help]="help.servicePriority">
+              <amc-select inputId="sf-priority" formControlName="servicePriority" [options]="priorityOptions" />
+            </amc-form-field>
+            <div class="sm:col-span-2">
+              <span class="amc-label mb-1.5">Preferred Visit Days</span>
+              <amc-chip-select formControlName="preferredVisitDays" [options]="weekdayOptions" ariaLabel="Preferred visit days" />
+            </div>
+            <amc-form-field label="Preferred Visit Time" for="sf-visittime" [control]="s.controls.preferredVisitTime" [help]="help.preferredVisitTime">
+              <amc-select inputId="sf-visittime" formControlName="preferredVisitTime" [options]="visitTimeOptions" placeholder="No preference" [clearable]="true" />
+            </amc-form-field>
+            <div class="sm:col-span-2 xl:col-span-3">
+              <amc-switch
+                formControlName="accessNoticeRequired"
+                inputId="sf-notice"
+                label="Access notice required"
+                description="The site must be notified in advance before any technician visit."
+              />
+            </div>
+          </div>
+        </amc-panel>
+
+        <!-- F. Site notes -->
+        @let n = form.controls.notes;
+        <amc-panel
+          id="section-notes"
+          class="scroll-mt-24"
+          [collapsible]="true"
+          title="Site notes"
+          description="Instructions for visits and internal context"
+          icon="sticky-note"
+          formGroupName="notes"
+        >
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 lg:grid-cols-3">
+            <amc-form-field label="Site Instructions" for="sf-sinstr" [control]="n.controls.siteInstructions" [help]="help.siteInstructions">
+              <textarea id="sf-sinstr" class="amc-textarea" formControlName="siteInstructions"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Technician Instructions" for="sf-tinstr" [control]="n.controls.technicianInstructions" [help]="help.technicianInstructions">
+              <textarea id="sf-tinstr" class="amc-textarea" formControlName="technicianInstructions"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Internal Notes" for="sf-inotes" [control]="n.controls.internalNotes" [help]="help.internalNotes">
+              <textarea id="sf-inotes" class="amc-textarea" formControlName="internalNotes"></textarea>
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- Sticky footer -->
+        <div class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div class="flex items-center gap-2">
+            <p class="mr-auto hidden text-xs text-ink-muted md:block">
+              @if (form.dirty) {
+                <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-warn"></span>Unsaved changes</span>
+              } @else {
+                Fields marked <span class="text-danger">*</span> are required.
+              }
+            </p>
+            <a [routerLink]="editing ? ['/app/customers/sites', siteId()] : '/app/customers/sites'" class="amc-btn-ghost">Cancel</a>
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('contact')">Save &amp; Add Contact</button>
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('asset')">Save &amp; Add Asset</button>
+            <amc-action-menu
+              class="sm:hidden"
+              ariaLabel="More save options"
+              [items]="[
+                { id: 'contact', label: 'Save & Add Contact', icon: 'user-plus' },
+                { id: 'asset', label: 'Save & Add Asset', icon: 'box' },
+              ]"
+              (action)="onMoreAction($event)"
+            />
+            <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">
+              @if (saving()) {
+                <amc-spinner [size]="14" />
+              } @else {
+                <amc-icon name="save" />
+              }
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </form>

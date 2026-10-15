@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { Icon, type IconName } from './icon';
 
 /** Titled content card used for grouped information, widgets and form sections. */
@@ -12,8 +12,10 @@ import { Icon, type IconName } from './icon';
       @if (title()) {
         <header
           class="flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-4 py-3 sm:px-5"
+          [class]="collapsible() ? 'cursor-pointer select-none' : ''"
+          (click)="collapsible() && toggle()"
         >
-          <div class="flex min-w-0 items-center gap-3">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
             @if (icon(); as name) {
               <span
                 class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted"
@@ -21,19 +23,33 @@ import { Icon, type IconName } from './icon';
                 <amc-icon [name]="name" />
               </span>
             }
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <h2 class="truncate text-sm font-semibold text-ink">{{ title() }}</h2>
               @if (description()) {
                 <p class="truncate text-xs text-ink-muted">{{ description() }}</p>
               }
             </div>
           </div>
-          <div class="flex items-center gap-2 empty:hidden">
-            <ng-content select="[panelActions]" />
+          <div class="flex items-center gap-2">
+            <div class="empty:hidden" (click)="$event.stopPropagation()">
+              <ng-content select="[panelActions]" />
+            </div>
+            @if (collapsible()) {
+              <amc-icon
+                name="chevron-down"
+                [size]="16"
+                class="shrink-0 text-ink-muted transition-transform duration-200"
+                [class]="expanded() ? '' : '-rotate-90'"
+              />
+            }
           </div>
         </header>
       }
-      <div class="flex-1" [class]="padded() ? 'p-4 sm:p-5' : ''">
+      <div
+        class="flex-1"
+        [class]="padded() ? 'p-4 sm:p-5' : ''"
+        [hidden]="collapsible() && !expanded()"
+      >
         <ng-content />
       </div>
     </section>
@@ -44,4 +60,12 @@ export class Panel {
   readonly description = input('');
   readonly icon = input<IconName | null>(null);
   readonly padded = input(true);
+  /** When true, the header acts as a toggle to collapse/expand the body. */
+  readonly collapsible = input(false);
+
+  protected readonly expanded = signal(true);
+
+  protected toggle(): void {
+    this.expanded.set(!this.expanded());
+  }
 }

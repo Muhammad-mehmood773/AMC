@@ -5,12 +5,13 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AppearanceStore } from '@core/appearance/appearance.store';
 import { AppearancePanel } from './appearance-panel';
+import { BottomNav } from './bottom-nav';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
 @Component({
   selector: 'amc-app-layout',
-  imports: [AppearancePanel, Header, RouterOutlet, Sidebar],
+  imports: [AppearancePanel, BottomNav, Header, RouterOutlet, Sidebar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-screen', '(document:keydown.escape)': 'mobileNavOpen.set(false)' },
   template: `
@@ -33,11 +34,13 @@ import { Sidebar } from './sidebar';
       <amc-header (openMenu)="mobileNavOpen.set(true)" (openAppearance)="openAppearance()" />
       <main
         id="main"
-        class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7"
+        class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 pb-20 sm:px-6 sm:py-6 lg:px-8 lg:py-7 lg:pb-7"
       >
         <router-outlet />
       </main>
     </div>
+    <!-- Mobile bottom tab bar -->
+    <amc-bottom-nav />
     <amc-appearance-panel [(open)]="appearanceOpen" />
   `,
 })

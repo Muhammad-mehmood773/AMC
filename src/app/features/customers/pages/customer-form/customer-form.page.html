@@ -210,6 +210,7 @@
         <amc-panel
           id="section-basic"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Basic information"
           description="Identity and classification of the customer"
           icon="building"
@@ -274,6 +275,7 @@
         <amc-panel
           id="section-legal"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Legal & registration"
           description="Statutory identifiers used for invoicing and compliance"
           icon="file-check"
@@ -336,6 +338,7 @@
         <amc-panel
           id="section-address"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Primary address"
           description="Registered business address of the customer"
           icon="map-pin"
@@ -348,6 +351,7 @@
         <amc-panel
           id="section-contact"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Primary contact"
           [description]="editing ? 'Updates the customer’s primary contact record' : 'Created as the customer’s primary contact'"
           icon="user"
@@ -383,6 +387,7 @@
         <amc-panel
           id="section-commercial"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Commercial information"
           description="Ownership, pricing and billing defaults"
           icon="briefcase"
@@ -424,6 +429,7 @@
         <amc-panel
           id="section-operational"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Operational information"
           description="Service defaults inherited by new sites and requests"
           icon="sliders"
@@ -461,6 +467,7 @@
         <amc-panel
           id="section-notes"
           class="scroll-mt-24"
+          [collapsible]="true"
           title="Notes & documents"
           description="Internal context and customer-facing notes"
           icon="sticky-note"

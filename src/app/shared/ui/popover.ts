@@ -44,6 +44,7 @@ const MARGIN = 8;
       [style.left.px]="position().left"
       [style.width.px]="position().width"
       [style.max-height.px]="position().maxHeight"
+      [style.visibility]="positioned() ? 'visible' : 'hidden'"
       [attr.role]="role()"
       [attr.aria-label]="ariaLabel() || null"
       (keydown.escape)="close(true)"
@@ -66,6 +67,8 @@ export class Popover {
   readonly panelClass = input('');
 
   protected readonly position = signal<Position>({ top: 0, left: 0, width: null, maxHeight: 360 });
+  /** Hidden until the first reposition() completes — prevents the top-left flash. */
+  protected readonly positioned = signal(false);
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
   private shown = false;
 
@@ -91,11 +94,16 @@ export class Popover {
       const shouldShow = this.open();
       if (shouldShow && !this.shown) {
         this.shown = true;
-        this.reposition();
+        this.positioned.set(false);       // hide until positioned
         panel.showPopover?.();
-        requestAnimationFrame(() => this.reposition());
+        // First pass: measure + position, then reveal
+        requestAnimationFrame(() => {
+          this.reposition();
+          this.positioned.set(true);      // now visible at correct location
+        });
       } else if (!shouldShow && this.shown) {
         this.shown = false;
+        this.positioned.set(false);
         panel.hidePopover?.();
       }
     });

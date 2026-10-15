@@ -60,6 +60,13 @@ import { Select } from '@shared/ui/select';
 
 type SaveIntent = 'save' | 'contact' | 'asset';
 
+interface SiteFormSection {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: import('@shared/ui/icon').IconName;
+  readonly group: keyof SiteFormPage['form']['controls'] | null;
+}
+
 @Component({
   selector: 'amc-site-form-page',
   imports: [
@@ -147,6 +154,53 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
 
   protected readonly lookupTypes = LOOKUP;
   protected readonly help = SITE_FIELD_HELP;
+
+  protected readonly sections: readonly SiteFormSection[] = [
+    { id: 'info',       label: 'Site information',   icon: 'map-pin',      group: 'info' },
+    { id: 'location',   label: 'Location',            icon: 'globe',        group: 'location' },
+    { id: 'timezone',   label: 'Time zone',           icon: 'clock',        group: null },
+    { id: 'operations', label: 'Operations',          icon: 'sliders',      group: 'operations' },
+    { id: 'service',    label: 'Service',             icon: 'wrench',       group: 'service' },
+    { id: 'notes',      label: 'Notes',               icon: 'sticky-note',  group: 'notes' },
+  ];
+
+  /** Re-evaluates on any form status/touch change. */
+  private readonly formEvents = toSignal(this.form.events.pipe(map(() => Symbol())));
+
+  protected readonly sectionProgress = computed(() => {
+    this.formEvents();
+    return this.sections.map((s) => {
+      if (!s.group || s.group === 'notes') return 100;
+      if (s.group === null) return 100;
+      const grp = this.form.controls[s.group];
+      if (!('controls' in grp)) return grp.valid ? 100 : 80;
+      const controls = Object.values(
+        (grp as { controls: Record<string, { value: unknown; valid: boolean; errors: Record<string, unknown> | null }> }).controls,
+      );
+      const required = controls.filter((c) => c.errors != null && 'required' in c.errors);
+      if (required.length === 0) return (grp as { valid: boolean }).valid ? 100 : 80;
+      const filled = required.filter((c) => c.value !== '' && c.value !== null && c.value !== undefined).length;
+      return Math.round((filled / required.length) * 100);
+    });
+  });
+
+  protected readonly overallProgress = computed(() => {
+    const vals = this.sectionProgress();
+    return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
+  });
+
+  protected sectionInvalid(group: SiteFormSection['group']): boolean {
+    if (!group) return false;
+    const grp = this.form.controls[group];
+    return grp.invalid && grp.touched;
+  }
+
+  protected scrollTo(id: string): void {
+    this.host.nativeElement
+      .querySelector(`#section-${id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   protected readonly statusOptions = toOptions(SITE_STATUSES);
   protected readonly priorityOptions = toOptions(SERVICE_PRIORITIES);
   protected readonly visitTimeOptions = toOptions(VISIT_TIMES);

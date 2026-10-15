@@ -36,8 +36,11 @@ const SIZES = {
       (close)="open.set(false)"
     >
       <div class="flex max-h-full min-h-0 w-full flex-col">
-        <!-- Modal/Drawer header with gradient -->
-        <header class="relative flex shrink-0 items-start justify-between gap-4 border-b border-line bg-gradient-to-b from-surface to-surface-muted/60 px-5 py-4 sm:px-6">
+        <!-- Header: subtle downward shadow separating it from the body -->
+        <header
+          class="relative flex shrink-0 items-start justify-between gap-4 border-b border-line bg-surface px-5 py-4 sm:px-6"
+          style="box-shadow: 0 2px 8px -2px rgb(15 23 42 / 0.08), 0 1px 3px -1px rgb(15 23 42 / 0.06);"
+        >
           <div class="min-w-0">
             <h2 class="text-base font-semibold tracking-tight text-ink">{{ title() }}</h2>
             @if (description()) {
@@ -52,20 +55,19 @@ const SIZES = {
           >
             <amc-icon name="x" [size]="18" />
           </button>
-          <!-- Subtle bottom separator glow -->
-          <span class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-line-strong to-transparent"></span>
         </header>
 
         <!-- Scrollable body -->
-        <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <div class="min-h-0 flex-1 overflow-y-auto bg-surface-muted/30 px-5 py-5 sm:px-6">
           @if (open()) {
             <ng-content />
           }
         </div>
 
-        <!-- Footer with raised surface + top shadow line -->
+        <!-- Footer: upward shadow lifting it above the body -->
         <footer
-          class="relative flex shrink-0 flex-col-reverse gap-2 border-t border-line bg-gradient-to-t from-surface-muted to-surface px-5 py-3.5 shadow-[0_-1px_0_0_var(--color-line)] empty:hidden sm:flex-row sm:justify-end sm:px-6"
+          class="relative flex shrink-0 flex-col-reverse gap-2 border-t border-line bg-surface px-5 py-3.5 empty:hidden sm:flex-row sm:justify-end sm:px-6"
+          style="box-shadow: 0 -2px 8px -2px rgb(15 23 42 / 0.08), 0 -1px 3px -1px rgb(15 23 42 / 0.06);"
         >
           <ng-content select="[dialogFooter]" />
         </footer>
