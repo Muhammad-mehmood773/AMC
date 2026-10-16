@@ -1,0 +1,438 @@
+@let editing = isEdit();
+@let v = value();
+
+<div class="space-y-5 pb-4">
+  <amc-page-header
+    [title]="editing ? 'Edit Asset' : 'New Asset'"
+    [subtitle]="editing ? 'Maintain the master record of the installed asset.' : 'Create the master record of an installed or planned asset.'"
+    [breadcrumbs]="[
+      { label: 'Assets & Installed Base', path: '/app/assets/dashboard' },
+      { label: 'Assets', path: '/app/assets/list' },
+      ...(editing && existing.hasValue() && existing.value() ? [{ label: existing.value()!.name, path: '/app/assets/' + assetId() }] : []),
+      { label: editing ? 'Edit' : 'New' },
+    ]"
+  >
+    @if (editing && existing.hasValue() && existing.value()) {
+      <amc-status-badge [label]="existing.value()!.status" [tone]="statusTone[existing.value()!.status]" />
+    }
+  </amc-page-header>
+
+  @if (editing && existing.error()) {
+    <div class="amc-card">
+      <amc-error-state title="Asset not found" message="This asset could not be loaded. It may not exist or the link is incorrect." (retry)="existing.reload()" />
+    </div>
+  } @else if (editing && existing.isLoading() && !existing.hasValue()) {
+    <div class="amc-card space-y-4 p-6">
+      @for (i of [1, 2, 3]; track i) {
+        <amc-skeleton class="h-4 w-48" />
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3"><amc-skeleton class="h-10" /><amc-skeleton class="h-10" /><amc-skeleton class="h-10" /></div>
+      }
+    </div>
+  } @else {
+    <form [formGroup]="form" class="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]" novalidate (ngSubmit)="save('save')">
+      <nav class="hidden lg:block" aria-label="Form sections">
+        <ul class="sticky top-24 space-y-0.5">
+          @for (section of sections; track section.id) {
+            <li>
+              <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink" (click)="scrollTo(section.id)">
+                <amc-icon [name]="section.icon" class="text-ink-subtle" />
+                <span class="flex-1 truncate">{{ section.label }}</span>
+                @if (sectionInvalid(section.id)) {
+                  <span class="h-2 w-2 rounded-full bg-danger" aria-label="Has errors"></span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <div class="min-w-0 space-y-5">
+        <div class="amc-card px-4 py-3">
+          <div class="mb-2 flex items-center justify-between">
+            <p class="text-xs font-medium text-ink-muted">Form completion</p>
+            <p class="text-xs font-semibold text-ink">{{ overallProgress() }}%</p>
+          </div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+            <div class="h-full rounded-full transition-all duration-500" [class]="overallProgress() === 100 ? 'bg-success' : overallProgress() >= 60 ? 'bg-brand' : 'bg-warn'" [style.width.%]="overallProgress()"></div>
+          </div>
+          <div class="mt-3 grid grid-cols-5 gap-1 sm:grid-cols-10">
+            @for (section of sections; track section.id; let i = $index) {
+              <button type="button" class="flex flex-col items-center gap-1 rounded-lg p-1.5 text-center transition-colors hover:bg-surface" (click)="scrollTo(section.id)" [title]="section.label">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full text-[11px]" [class]="sectionProgress()[i] === 100 ? 'bg-success/15 text-success' : sectionInvalid(section.id) ? 'bg-danger/15 text-danger' : 'bg-surface-sunken text-ink-muted'">
+                  @if (sectionProgress()[i] === 100) { <amc-icon name="check" [size]="12" /> } @else if (sectionInvalid(section.id)) { <amc-icon name="alert-triangle" [size]="12" /> } @else { {{ i + 1 }} }
+                </span>
+                <span class="hidden truncate text-[10px] text-ink-muted sm:block">{{ section.label.split(' ')[0] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- A. Identification -->
+        @let idc = form.controls.identification.controls;
+        <amc-panel id="section-identification" class="scroll-mt-24" [collapsible]="true" title="A. Asset identification" description="Identity, ownership by customer and site, and lifecycle status" icon="hash" formGroupName="identification">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Asset ID" for="af-code" [control]="idc.code" [help]="help.code" [hint]="editing ? 'Asset IDs cannot be changed.' : 'Auto-generated; you may override it.'" [messages]="{ pattern: '3–20 letters, digits or hyphens.' }">
+              <input id="af-code" class="amc-input font-mono uppercase" formControlName="code" autocomplete="off" />
+            </amc-form-field>
+            <amc-form-field label="Asset Tag" for="af-tag" [control]="idc.tag" [help]="help.tag">
+              <input id="af-tag" class="amc-input font-mono" formControlName="tag" autocomplete="off" />
+            </amc-form-field>
+            <amc-form-field label="Asset Name" for="af-name" [control]="idc.name">
+              <input id="af-name" class="amc-input" formControlName="name" placeholder="e.g. Water-Cooled Chiller 1" />
+            </amc-form-field>
+            <amc-form-field label="Customer" for="af-customer" [control]="idc.customerId" [help]="help.customer" [hint]="locationLocked() ? 'Change through an asset transfer.' : ''">
+              <amc-select inputId="af-customer" formControlName="customerId" [options]="refs.customerOptions()" placeholder="Select customer…" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Site" for="af-site" [control]="idc.siteId" [help]="help.site" [hint]="locationLocked() ? 'Change through an asset transfer.' : v.identification.customerId ? '' : 'Select a customer first.'">
+              <amc-select inputId="af-site" formControlName="siteId" [options]="siteOptions()" placeholder="Select site…" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Asset Status" for="af-status" [control]="idc.status" [help]="help.status">
+              <amc-select inputId="af-status" formControlName="status" [options]="statusOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Barcode" for="af-barcode" [control]="idc.barcode" hint="Defaults to the asset tag.">
+              <input id="af-barcode" class="amc-input font-mono" formControlName="barcode" />
+            </amc-form-field>
+            <amc-form-field label="RFID Reference" for="af-rfid" [control]="idc.rfid" [help]="help.rfid">
+              <input id="af-rfid" class="amc-input font-mono" formControlName="rfid" placeholder="Where applicable" />
+            </amc-form-field>
+            @if (locationLocked()) {
+              <div class="flex items-end pb-1">
+                <a [routerLink]="['/app/assets', assetId()]" [queryParams]="{ tab: 'location', action: 'transfer' }" class="amc-link inline-flex items-center gap-1 text-sm"><amc-icon name="arrow-right" [size]="14" /> Transfer / relocate asset</a>
+              </div>
+            }
+          </div>
+        </amc-panel>
+
+        <!-- B. Classification -->
+        @let cls = form.controls.classification.controls;
+        <amc-panel id="section-classification" class="scroll-mt-24" [collapsible]="true" title="B. Asset classification" description="Category, type, criticality and service classes" icon="tag" formGroupName="classification">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Asset Category" for="af-category" [control]="cls.category" [help]="help.category">
+              <amc-lookup-select inputId="af-category" formControlName="category" [type]="lookup.category" />
+            </amc-form-field>
+            <amc-form-field label="Asset Type" for="af-type" [control]="cls.type">
+              <amc-lookup-select inputId="af-type" formControlName="type" [type]="lookup.type" />
+            </amc-form-field>
+            <amc-form-field label="Sub-Type" for="af-subtype" [control]="cls.subType">
+              <input id="af-subtype" class="amc-input" formControlName="subType" placeholder="e.g. Water-Cooled Screw" />
+            </amc-form-field>
+            <amc-form-field label="Criticality" for="af-criticality" [control]="cls.criticality" [help]="help.criticality">
+              <amc-select inputId="af-criticality" formControlName="criticality" [options]="criticalityOptions" />
+            </amc-form-field>
+            <amc-form-field label="Service Class" for="af-sclass" [control]="cls.serviceClass">
+              <amc-lookup-select inputId="af-sclass" formControlName="serviceClass" [type]="lookup.serviceClass" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Maintenance Class" for="af-mclass" [control]="cls.maintenanceClass">
+              <amc-lookup-select inputId="af-mclass" formControlName="maintenanceClass" [type]="lookup.maintenanceClass" [clearable]="true" />
+            </amc-form-field>
+          </div>
+          @let cp = criticalityProfile[v.classification.criticality];
+          <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-line bg-surface-muted px-4 py-3 text-xs text-ink-muted">
+            <amc-status-badge [label]="v.classification.criticality" [tone]="criticalityTone[v.classification.criticality]" />
+            <span>SLA: <span class="font-medium text-ink">{{ cp.sla }}</span></span>
+            <span>Response: <span class="font-medium text-ink">{{ cp.responseTime }}</span></span>
+            <span>PM: <span class="font-medium text-ink">{{ cp.pmFrequency }}</span></span>
+            <span>Technician: <span class="font-medium text-ink">{{ cp.technicianPriority }}</span></span>
+          </div>
+        </amc-panel>
+
+        <!-- C. Manufacturer -->
+        @let mfr = form.controls.manufacturer.controls;
+        <amc-panel id="section-manufacturer" class="scroll-mt-24" [collapsible]="true" title="C. Manufacturer information" description="Make, model and serial identification" icon="building" formGroupName="manufacturer">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Manufacturer" for="af-mfr" [control]="mfr.manufacturer">
+              <amc-lookup-select inputId="af-mfr" formControlName="manufacturer" [type]="lookup.manufacturer" />
+            </amc-form-field>
+            <amc-form-field label="Brand" for="af-brand" [control]="mfr.brand">
+              <input id="af-brand" class="amc-input" formControlName="brand" />
+            </amc-form-field>
+            <amc-form-field label="Model" for="af-model" [control]="mfr.model">
+              <input id="af-model" class="amc-input" formControlName="model" placeholder="e.g. Carrier 30XW-400" />
+            </amc-form-field>
+            <amc-form-field label="Model Number" for="af-modelno" [control]="mfr.modelNumber">
+              <input id="af-modelno" class="amc-input font-mono" formControlName="modelNumber" />
+            </amc-form-field>
+            <amc-form-field label="Serial Number" for="af-serial" [control]="mfr.serialNumber" [help]="help.serialNumber">
+              <input id="af-serial" class="amc-input font-mono" formControlName="serialNumber" />
+            </amc-form-field>
+            <amc-form-field label="Part Number" for="af-part" [control]="mfr.partNumber">
+              <input id="af-part" class="amc-input font-mono" formControlName="partNumber" />
+            </amc-form-field>
+            <amc-form-field label="Product Family" for="af-family" [control]="mfr.productFamily">
+              <input id="af-family" class="amc-input" formControlName="productFamily" />
+            </amc-form-field>
+            <amc-form-field label="Manufacturing Date" for="af-mdate" [control]="mfr.manufacturingDate">
+              <amc-date-picker inputId="af-mdate" formControlName="manufacturingDate" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- D. Installation -->
+        @let ins = form.controls.installation.controls;
+        <amc-panel id="section-installation" class="scroll-mt-24" [collapsible]="true" title="D. Installation information" description="Where and when the asset was installed and commissioned" icon="wrench" formGroupName="installation">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Installation Date" for="af-idate" [control]="ins.date" [hint]="v.identification.status === 'Planned' || v.identification.status === 'Ordered' || v.identification.status === 'Received' ? 'Set by the installation workflow once installed.' : ''">
+              <amc-date-picker inputId="af-idate" formControlName="date" />
+            </amc-form-field>
+            <amc-form-field label="Commissioning Date" for="af-cdate" [control]="ins.commissioningDate">
+              <amc-date-picker inputId="af-cdate" formControlName="commissioningDate" [min]="v.installation.date" />
+            </amc-form-field>
+            <amc-form-field label="Installed By" for="af-iby" [control]="ins.installedBy" [help]="help.installedBy">
+              <amc-select inputId="af-iby" formControlName="installedBy" [options]="refs.technicianOptions()" placeholder="Select technician…" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Installation Location" for="af-iloc" [control]="ins.location">
+              <input id="af-iloc" class="amc-input" formControlName="location" placeholder="e.g. Central Plant Room" />
+            </amc-form-field>
+            <amc-form-field label="Installation Floor" for="af-floor" [control]="ins.floor">
+              <input id="af-floor" class="amc-input" formControlName="floor" placeholder="e.g. B2" />
+            </amc-form-field>
+            <amc-form-field label="Installation Room" for="af-room" [control]="ins.room">
+              <input id="af-room" class="amc-input" formControlName="room" />
+            </amc-form-field>
+            <amc-form-field label="Installation Area" for="af-area" [control]="ins.area">
+              <input id="af-area" class="amc-input" formControlName="area" placeholder="e.g. Mechanical" />
+            </amc-form-field>
+            <amc-form-field label="Initial Meter Reading" for="af-imeter" [control]="ins.initialMeterReading">
+              <input id="af-imeter" type="number" min="0" class="amc-input tabular-nums" formControlName="initialMeterReading" />
+            </amc-form-field>
+            <amc-form-field label="Installation Notes" for="af-inotes" [control]="ins.notes" class="sm:col-span-2 xl:col-span-3">
+              <textarea id="af-inotes" class="amc-textarea min-h-16" formControlName="notes"></textarea>
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- E. Technical -->
+        @let tech = form.controls.technical.controls;
+        <amc-panel id="section-technical" class="scroll-mt-24" [collapsible]="true" title="E. Technical information" [description]="v.classification.category ? 'Fields configured for ' + v.classification.category : 'Select a category to see its configured attributes'" icon="sliders">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3" formGroupName="technical">
+            @for (field of visibleTechnical(); track field.key) {
+              @if (field.key === 'fuelType') {
+                <amc-form-field label="Fuel Type" for="af-fuel" [control]="tech.fuelType">
+                  <amc-lookup-select inputId="af-fuel" formControlName="fuelType" [type]="lookup.fuelType" [clearable]="true" />
+                </amc-form-field>
+              } @else if (field.key === 'refrigerantType') {
+                <amc-form-field label="Refrigerant Type" for="af-refrigerant" [control]="tech.refrigerantType">
+                  <amc-lookup-select inputId="af-refrigerant" formControlName="refrigerantType" [type]="lookup.refrigerantType" [clearable]="true" />
+                </amc-form-field>
+              } @else {
+                <amc-form-field [label]="field.label" [for]="'af-' + field.key" [control]="tech[field.key]">
+                  <input [id]="'af-' + field.key" class="amc-input" [formControlName]="field.key" [placeholder]="field.placeholder" />
+                </amc-form-field>
+              }
+            }
+            <amc-form-field label="Technical Specifications" for="af-specs" [control]="tech.specifications" class="sm:col-span-2 xl:col-span-3">
+              <textarea id="af-specs" class="amc-textarea min-h-16" formControlName="specifications"></textarea>
+            </amc-form-field>
+          </div>
+          @if (profile().attributes.length) {
+            <div class="mt-5 border-t border-line pt-4">
+              <p class="amc-overline mb-3">Custom attributes · {{ v.classification.category }}</p>
+              <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3" formGroupName="customAttributes">
+                @for (attr of profile().attributes; track attr.key) {
+                  <amc-form-field [label]="attr.label" [for]="'af-attr-' + attr.key">
+                    <input [id]="'af-attr-' + attr.key" class="amc-input" [formControlName]="attr.key" [placeholder]="attr.placeholder ?? ''" />
+                  </amc-form-field>
+                }
+              </div>
+            </div>
+          }
+        </amc-panel>
+
+        <!-- F. Warranty -->
+        @let war = form.controls.warranty.controls;
+        <amc-panel id="section-warranty" class="scroll-mt-24" [collapsible]="true" title="F. Warranty information" description="Primary warranty — maintained independently from contract dates" icon="shield-check" formGroupName="warranty">
+          <amc-status-badge panelActions [label]="warrantyStatus()" [tone]="warrantyTone[warrantyStatus()]" />
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Warranty Status" for="af-wstatus" [help]="help.warranty" hint="Derived automatically from the warranty dates.">
+              <input id="af-wstatus" class="amc-input" [value]="warrantyStatus()" readonly />
+            </amc-form-field>
+            <amc-form-field label="Warranty Start Date" for="af-wstart" [control]="war.startDate">
+              <amc-date-picker inputId="af-wstart" formControlName="startDate" />
+            </amc-form-field>
+            <amc-form-field label="Warranty End Date" for="af-wend" [control]="war.endDate">
+              <amc-date-picker inputId="af-wend" formControlName="endDate" [min]="v.warranty.startDate" />
+            </amc-form-field>
+            <amc-form-field label="Warranty Provider" for="af-wprov" [control]="war.provider">
+              <input id="af-wprov" class="amc-input" formControlName="provider" />
+            </amc-form-field>
+            <amc-form-field label="Warranty Reference" for="af-wref" [control]="war.reference">
+              <input id="af-wref" class="amc-input font-mono" formControlName="reference" />
+            </amc-form-field>
+            <amc-form-field label="Warranty Terms" for="af-wterms" [control]="war.terms">
+              <input id="af-wterms" class="amc-input" formControlName="terms" placeholder="e.g. Parts and labour, 24 months" />
+            </amc-form-field>
+            <amc-form-field label="Warranty Notes" for="af-wnotes" [control]="war.notes" class="sm:col-span-2 xl:col-span-3">
+              <textarea id="af-wnotes" class="amc-textarea min-h-16" formControlName="notes"></textarea>
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- G. Contract / service -->
+        @let svc = form.controls.service.controls;
+        <amc-panel id="section-service" class="scroll-mt-24" [collapsible]="true" title="G. Contract / service information" description="Agreements, SLA and maintenance plan applicable to the asset" icon="file-check" formGroupName="service">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Active Contract" for="af-contract" [control]="svc.contractId" [help]="help.contract" [hint]="v.identification.customerId ? '' : 'Select a customer first.'">
+              <amc-select inputId="af-contract" formControlName="contractId" [options]="contractOptions()" placeholder="No contract" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="AMC" for="af-amc" [control]="svc.amcId">
+              <amc-select inputId="af-amc" formControlName="amcId" [options]="amcOptions()" placeholder="No AMC" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="SLA" for="af-sla" [control]="svc.slaId">
+              <amc-select inputId="af-sla" formControlName="slaId" [options]="refs.slaOptions()" placeholder="No SLA" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Plan" for="af-splan" [control]="svc.servicePlan">
+              <amc-lookup-select inputId="af-splan" formControlName="servicePlan" [type]="lookup.servicePlan" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Maintenance Plan" for="af-mplan" [control]="svc.maintenancePlan">
+              <amc-lookup-select inputId="af-mplan" formControlName="maintenancePlan" [type]="lookup.maintenancePlan" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Frequency" for="af-freq" [control]="svc.serviceFrequency">
+              <amc-select inputId="af-freq" formControlName="serviceFrequency" [options]="frequencyOptions" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Priority" for="af-priority" [control]="svc.servicePriority" hint="Defaults from criticality.">
+              <amc-select inputId="af-priority" formControlName="servicePriority" [options]="priorityOptions" />
+            </amc-form-field>
+            <amc-form-field label="Service Territory" for="af-territory" [control]="svc.serviceTerritoryId">
+              <amc-select inputId="af-territory" formControlName="serviceTerritoryId" [options]="territoryOptions()" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- H. Ownership & financial -->
+        @let own = form.controls.ownership.controls;
+        <amc-panel id="section-ownership" class="scroll-mt-24" [collapsible]="true" title="H. Ownership & financial information" description="Ownership structure, purchase and financial references" icon="wallet" formGroupName="ownership">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Ownership Type" for="af-otype" [control]="own.type" [help]="help.ownership">
+              <amc-select inputId="af-otype" formControlName="type" [options]="ownershipOptions" />
+            </amc-form-field>
+            <amc-form-field label="Asset Owner" for="af-owner" [control]="own.owner">
+              <input id="af-owner" class="amc-input" formControlName="owner" />
+            </amc-form-field>
+            <amc-form-field label="Purchase Date" for="af-pdate" [control]="own.purchaseDate">
+              <amc-date-picker inputId="af-pdate" formControlName="purchaseDate" />
+            </amc-form-field>
+            <amc-form-field label="Purchase Cost" for="af-cost" [control]="own.purchaseCost">
+              <div class="relative">
+                <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-subtle">{{ v.ownership.currency }}</span>
+                <input id="af-cost" type="number" min="0" step="1000" class="amc-input pl-12 tabular-nums" formControlName="purchaseCost" />
+              </div>
+            </amc-form-field>
+            <amc-form-field label="Currency" for="af-currency" [control]="own.currency">
+              <amc-select inputId="af-currency" formControlName="currency" [options]="refs.currencyOptions()" />
+            </amc-form-field>
+            <amc-form-field label="Supplier" for="af-supplier" [control]="own.supplier">
+              <input id="af-supplier" class="amc-input" formControlName="supplier" />
+            </amc-form-field>
+            <amc-form-field label="Purchase Reference" for="af-pref" [control]="own.purchaseReference">
+              <input id="af-pref" class="amc-input font-mono" formControlName="purchaseReference" />
+            </amc-form-field>
+            <amc-form-field label="Depreciation Reference" for="af-dref" [control]="own.depreciationReference">
+              <input id="af-dref" class="amc-input font-mono" formControlName="depreciationReference" />
+            </amc-form-field>
+            <amc-form-field label="Financial Asset Reference" for="af-fref" [control]="own.financialAssetReference">
+              <input id="af-fref" class="amc-input font-mono" formControlName="financialAssetReference" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- I. Operational -->
+        @let op = form.controls.operational.controls;
+        <amc-panel id="section-operational" class="scroll-mt-24" [collapsible]="true" title="I. Operational information" description="Responsibility, meter and maintenance dates" icon="activity" formGroupName="operational">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Responsible Team" for="af-team" [control]="op.responsibleTeam">
+              <amc-lookup-select inputId="af-team" formControlName="responsibleTeam" [type]="lookup.responsibleTeam" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Assigned Technician" for="af-tech" [control]="op.assignedTechnician">
+              <amc-select inputId="af-tech" formControlName="assignedTechnician" [options]="refs.technicianOptions()" placeholder="Not assigned" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Service Region" for="af-region" [control]="op.serviceRegion">
+              <amc-select inputId="af-region" formControlName="serviceRegion" [options]="refs.regionOptions()" placeholder="Not set" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Operating Hours" for="af-ophours" [control]="op.operatingHours">
+              <input id="af-ophours" type="number" min="0" class="amc-input tabular-nums" formControlName="operatingHours" />
+            </amc-form-field>
+            <amc-form-field label="Meter Type" for="af-meter" [control]="op.meterType" [help]="help.meter">
+              <amc-lookup-select inputId="af-meter" formControlName="meterType" [type]="lookup.meterType" [clearable]="true" />
+            </amc-form-field>
+            <amc-form-field label="Current Meter Reading" for="af-cmeter" [control]="op.currentMeterReading">
+              <input id="af-cmeter" type="number" min="0" class="amc-input tabular-nums" formControlName="currentMeterReading" />
+            </amc-form-field>
+            <amc-form-field label="Last Maintenance Date" for="af-lmd" [control]="op.lastMaintenanceDate">
+              <amc-date-picker inputId="af-lmd" formControlName="lastMaintenanceDate" />
+            </amc-form-field>
+            <amc-form-field label="Next Maintenance Date" for="af-nmd" [control]="op.nextMaintenanceDate">
+              <amc-date-picker inputId="af-nmd" formControlName="nextMaintenanceDate" />
+            </amc-form-field>
+          </div>
+        </amc-panel>
+
+        <!-- J. Notes & attachments -->
+        @let nts = form.controls.notes.controls;
+        <amc-panel id="section-notes" class="scroll-mt-24" [collapsible]="true" title="J. Notes & attachments" description="Internal, customer and technician notes" icon="sticky-note" formGroupName="notes">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 lg:grid-cols-3">
+            <amc-form-field label="Internal Notes" for="af-inotes2" [control]="nts.internalNotes" hint="Visible to internal users only.">
+              <textarea id="af-inotes2" class="amc-textarea" formControlName="internalNotes"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Customer Notes" for="af-cnotes" [control]="nts.customerNotes" hint="Shared with the customer where applicable.">
+              <textarea id="af-cnotes" class="amc-textarea" formControlName="customerNotes"></textarea>
+            </amc-form-field>
+            <amc-form-field label="Technician Instructions" for="af-tnotes" [control]="nts.technicianInstructions" hint="Shown to technicians on work orders.">
+              <textarea id="af-tnotes" class="amc-textarea" formControlName="technicianInstructions"></textarea>
+            </amc-form-field>
+            <div class="lg:col-span-3">
+              <span class="amc-label">Attachments</span>
+              <label for="af-files" class="mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line-strong bg-surface-muted px-4 py-6 text-center transition-colors hover:border-brand hover:bg-brand-subtle">
+                <amc-icon name="upload" [size]="20" class="text-ink-subtle" />
+                <span class="text-sm font-medium text-ink">Click to attach files</span>
+                <span class="text-xs text-ink-muted">Photos, purchase documents, datasheets · stored in Asset Documents</span>
+                <input id="af-files" type="file" multiple class="sr-only" (change)="onFiles($event)" />
+              </label>
+              @if (attachments().length) {
+                <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
+                  @for (file of attachments(); track file) {
+                    <li class="flex items-center gap-3 px-3 py-2">
+                      <amc-icon name="paperclip" class="text-ink-subtle" />
+                      <span class="min-w-0 flex-1 truncate text-sm">{{ file.name }}</span>
+                      <span class="text-xs text-ink-muted">{{ formatFileSize(file.size) }}</span>
+                      <button type="button" class="amc-btn-icon h-7 w-7" [attr.aria-label]="'Remove ' + file.name" (click)="removeFile(file)"><amc-icon name="x" [size]="14" /></button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        </amc-panel>
+      </div>
+
+      <div class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:col-span-2 lg:-mx-8 lg:px-8">
+        <div class="flex items-center gap-2">
+          <p class="mr-auto hidden text-xs text-ink-muted md:block">
+            @if (form.dirty) {
+              <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-warn"></span>Unsaved changes</span>
+            } @else {
+              Fields marked <span class="text-danger">*</span> are required.
+            }
+          </p>
+          <a [routerLink]="editing ? ['/app/assets', assetId()] : '/app/assets/list'" class="amc-btn-ghost">Cancel</a>
+          <button type="button" class="amc-btn-secondary hidden xl:inline-flex" [disabled]="saving()" (click)="save('component')">Save &amp; Add Component</button>
+          <button type="button" class="amc-btn-secondary hidden xl:inline-flex" [disabled]="saving() || !!v.installation.date" [attr.title]="v.installation.date ? 'The asset already has an installation date' : null" (click)="save('install')">Save &amp; Install</button>
+          <button type="button" class="amc-btn-secondary hidden xl:inline-flex" [disabled]="saving()" (click)="save('warranty')">Save &amp; Add Warranty</button>
+          <amc-action-menu
+            class="xl:hidden"
+            ariaLabel="More save options"
+            [items]="[
+              { id: 'component', label: 'Save & Add Component', icon: 'layers' },
+              { id: 'install', label: 'Save & Install', icon: 'wrench', disabled: !!v.installation.date },
+              { id: 'warranty', label: 'Save & Add Warranty', icon: 'shield-check' },
+            ]"
+            (action)="onMoreAction($event)"
+          />
+          <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">
+            @if (saving()) { <amc-spinner [size]="14" /> } @else { <amc-icon name="save" /> }
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+</div>

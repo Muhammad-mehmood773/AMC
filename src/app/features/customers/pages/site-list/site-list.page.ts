@@ -282,7 +282,7 @@ export class SiteListPage {
   }
 
   protected async onAction({ id, row }: RowAction<SiteListItem>): Promise<void> {
-    const context = { customerName: row.customerName, siteName: row.name };
+    const context = { customerName: row.customerName, siteName: row.name, customerId: row.customerId, siteId: row.id };
     switch (id) {
       case 'view':
         void this.router.navigate(['/app/customers/sites', row.id]);

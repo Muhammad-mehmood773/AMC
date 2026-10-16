@@ -360,7 +360,7 @@ export class CustomerDetailPage {
       'create-request': 'Create Service Request',
     };
     if (handoffs[id]) {
-      this.handoff.open(handoffs[id], { customerName: c.name });
+      this.handoff.open(handoffs[id], { customerName: c.name, customerId: c.id });
       return;
     }
     switch (id) {

@@ -311,7 +311,7 @@ export class SiteDetailPage {
     const s = this.s();
     if (!s) return;
     if (HANDOFFS[id]) {
-      this.handoff.open(HANDOFFS[id], { customerName: s.customerName, siteName: s.name });
+      this.handoff.open(HANDOFFS[id], { customerName: s.customerName, siteName: s.name, customerId: s.customerId, siteId: s.id });
       return;
     }
     switch (id) {

@@ -25,5 +25,11 @@
   type in the feature's `LOOKUP_TYPES` registry (`editable: true` enables inline Add/Edit) and bind
   the field with `<amc-lookup-select [type]="…">`. Fixed/system lists (statuses, priorities,
   access levels, master data owned by other modules) stay plain `<amc-select>`.
+- Asset / Installed Base (`features/assets`, SRS 3): mock seed is derived from the customer/site
+  seed (`buildSeed()`), so customer, site, agreement and asset IDs (AST-00001…) match Customer 360.
+  Business rules (tag/serial uniqueness, status transitions, warranty/PM windows, criticality
+  profile, category-specific technical fields) live in `data/asset.config.ts`. Service actions
+  (SR / WO / maintenance) go through `AssetHandoff`, which shows the entitlement check first.
+  Asset labels use the offline `<amc-qr-code>` / `<amc-barcode>` (`shared/ui/codes.ts`).
 - Contextual help: pass `[help]` to `<amc-form-field>`; content lives in the feature's
   `data/field-help.ts`. Only add help where it explains a purpose or business rule.

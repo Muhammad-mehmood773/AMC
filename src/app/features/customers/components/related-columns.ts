@@ -14,7 +14,7 @@ type SiteNamer = (siteId: string) => string;
 
 export function assetColumns(siteName?: SiteNamer): DataColumn<AssetSummary>[] {
   return [
-    { key: 'name', label: 'Asset', value: (a) => a.name, secondary: (a) => a.tag, sortable: true, mobile: 'title' },
+    { key: 'name', label: 'Asset', value: (a) => a.name, secondary: (a) => a.tag, link: (a) => `/app/assets/${a.id}`, sortable: true, mobile: 'title' },
     { key: 'category', label: 'Category', value: (a) => a.category, sortable: true, visibility: 'md', mobile: 'meta' },
     { key: 'model', label: 'Model', value: (a) => a.model, visibility: 'lg', mobile: 'meta' },
     { key: 'serial', label: 'Serial No.', value: (a) => a.serialNumber, type: 'mono', visibility: 'xl' },

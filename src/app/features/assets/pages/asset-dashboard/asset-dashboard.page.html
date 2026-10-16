@@ -1,0 +1,221 @@
+<div class="space-y-6">
+  <amc-page-header
+    title="Asset Dashboard"
+    subtitle="Consolidated view of the installed asset base, warranty and contract coverage, maintenance and service condition."
+    [breadcrumbs]="[{ label: 'Assets & Installed Base' }, { label: 'Dashboard' }]"
+  >
+    <button type="button" class="amc-btn-ghost" [disabled]="dashboard.isLoading()" (click)="refresh()" aria-label="Refresh dashboard">
+      <amc-icon name="refresh" [class.animate-spin]="dashboard.isLoading()" />
+      <span class="hidden sm:inline">Refresh</span>
+    </button>
+    <button type="button" class="amc-btn-secondary" (click)="customizeOpen.set(!customizeOpen())">
+      <amc-icon name="sliders" />
+      <span class="hidden sm:inline">Customize</span>
+    </button>
+    <button type="button" class="amc-btn-secondary" [disabled]="!data()" (click)="export()">
+      <amc-icon name="download" />
+      <span class="hidden sm:inline">Export</span>
+    </button>
+    <button type="button" class="amc-btn-secondary hidden lg:inline-flex" (click)="startAction('Schedule Maintenance')">
+      <amc-icon name="calendar-check" />
+      Schedule Maintenance
+    </button>
+    <button type="button" class="amc-btn-secondary hidden md:inline-flex" (click)="startAction('Create Service Request')">
+      <amc-icon name="ticket" />
+      Create Service Request
+    </button>
+    <a routerLink="/app/assets/list" class="amc-btn-secondary hidden md:inline-flex">
+      <amc-icon name="box" />
+      View Assets
+    </a>
+    <a routerLink="/app/assets/new" class="amc-btn-primary">
+      <amc-icon name="plus" />
+      Add Asset
+    </a>
+  </amc-page-header>
+
+  <section class="amc-card p-3" aria-label="Dashboard filters">
+    <amc-filter-bar [showSearch]="false" [fields]="filterFields()" [(filters)]="filters">
+      <span actions class="text-sm text-ink-muted">
+        Installed base: <span class="font-medium text-ink">{{ data()?.kpis?.total ?? '—' }} assets</span>
+      </span>
+    </amc-filter-bar>
+  </section>
+
+  @if (customizeOpen()) {
+    <section class="amc-card animate-fade-in p-4" aria-label="Widget customization">
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semibold text-ink">Customize Dashboard</p>
+          <p class="text-xs text-ink-muted">Choose which widgets to show or hide.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="amc-btn-ghost amc-btn-sm text-xs" (click)="resetWidgets()"><amc-icon name="refresh" [size]="12" /> Reset all</button>
+          <button type="button" class="amc-btn-ghost amc-btn-sm" (click)="customizeOpen.set(false)" aria-label="Close"><amc-icon name="x" [size]="14" /></button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+        @for (w of widgetDefs; track w.id) {
+          <button type="button" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors" [class]="isVisible(w.id) ? 'border-brand bg-brand-subtle text-brand' : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink'" (click)="toggleWidget(w.id)">
+            <amc-icon [name]="w.icon" [size]="14" class="shrink-0" />
+            <span class="truncate text-xs font-medium">{{ w.label }}</span>
+            <amc-icon [name]="isVisible(w.id) ? 'check-circle' : 'eye-off'" [size]="12" class="ml-auto shrink-0" />
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  @if (dashboard.error()) {
+    <div class="amc-card">
+      <amc-error-state message="The asset dashboard could not be loaded. Please try again." (retry)="dashboard.reload()" />
+    </div>
+  } @else {
+    @let k = data()?.kpis;
+    @let loading = !k;
+    @if (isVisible('kpis')) {
+      <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7" aria-label="Key indicators">
+        <amc-kpi-card label="Total Assets" icon="box" tone="brand" link="/app/assets/list" [queryParams]="link({})" [loading]="loading" [value]="k?.total ?? 0" hint="Installed base" />
+        <amc-kpi-card label="Active Assets" icon="check-circle" tone="ok" link="/app/assets/list" [queryParams]="link({ flag: 'active' })" [loading]="loading" [value]="k?.active ?? 0" [hint]="percent(k?.active ?? 0, k?.total ?? 0)" />
+        <amc-kpi-card label="Inactive Assets" icon="ban" link="/app/assets/list" [queryParams]="link({ flag: 'inactive' })" [loading]="loading" [value]="k?.inactive ?? 0" hint="Out of service, in transit or not installed" />
+        <amc-kpi-card label="Installed Assets" icon="wrench" tone="info" link="/app/assets/list" [queryParams]="link({ flag: 'installed' })" [loading]="loading" [value]="k?.installed ?? 0" hint="Installed at customer sites" />
+        <amc-kpi-card label="Under Warranty" icon="shield-check" tone="ok" link="/app/assets/list" [queryParams]="link({ warranty: 'Active' })" [loading]="loading" [value]="k?.underWarranty ?? 0" [hint]="percent(k?.underWarranty ?? 0, k?.total ?? 0)" />
+        <amc-kpi-card label="Warranty Expiring" icon="clock" tone="warn" link="/app/assets/list" [queryParams]="link({ warranty: 'Expiring Soon' })" [loading]="loading" [value]="k?.warrantyExpiring ?? 0" [hint]="'Within ' + expiringDays + ' days'" />
+        <amc-kpi-card label="Under AMC" icon="file-check" tone="accent" link="/app/assets/list" [queryParams]="link({ flag: 'under-amc' })" [loading]="loading" [value]="k?.underAmc ?? 0" hint="Active or expiring AMC" />
+        <amc-kpi-card label="Assets with Active SLA" icon="activity" tone="brand" link="/app/assets/list" [queryParams]="link({ flag: 'active-sla' })" [loading]="loading" [value]="k?.withActiveSla ?? 0" hint="SLA with live coverage" />
+        <amc-kpi-card label="Requiring Maintenance" icon="alert-circle" tone="danger" link="/app/assets/list" [queryParams]="link({ flag: 'maintenance-required' })" [loading]="loading" [value]="k?.requiringMaintenance ?? 0" hint="Overdue or under maintenance" />
+        <amc-kpi-card label="With Open Service Requests" icon="ticket" tone="warn" link="/app/assets/list" [queryParams]="link({ flag: 'open-sr' })" [loading]="loading" [value]="k?.withOpenServiceRequests ?? 0" hint="New, assigned or in progress" />
+        <amc-kpi-card label="With Open Work Orders" icon="wrench" tone="info" link="/app/assets/list" [queryParams]="link({ flag: 'open-wo' })" [loading]="loading" [value]="k?.withOpenWorkOrders ?? 0" hint="Scheduled or in progress" />
+        <amc-kpi-card label="Due for Preventive Maintenance" icon="calendar-check" tone="brand" link="/app/assets/list" [queryParams]="link({ flag: 'pm-due' })" [loading]="loading" [value]="k?.duePreventiveMaintenance ?? 0" [hint]="'Next ' + pmWindow + ' days'" />
+        <amc-kpi-card label="Under Breakdown" icon="alert-triangle" tone="danger" link="/app/assets/list" [queryParams]="link({ flag: 'breakdown' })" [loading]="loading" [value]="k?.underBreakdown ?? 0" hint="Under repair" />
+        <amc-kpi-card label="Retired / Decommissioned" icon="archive" link="/app/assets/list" [queryParams]="link({ flag: 'retired' })" [loading]="loading" [value]="k?.retired ?? 0" hint="Kept for history" />
+      </section>
+    }
+
+    @if (data() && isVisible('charts')) {
+      <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Asset charts">
+        <amc-panel title="Asset Status" description="Distribution by lifecycle status" icon="pie-chart" class="min-w-0">
+          <div class="px-4 pb-4 pt-2">
+            <amc-mini-chart type="donut" [labels]="charts().status.labels" [values]="charts().status.values" [height]="220" ariaLabel="Asset status distribution" />
+          </div>
+        </amc-panel>
+        <amc-panel title="Assets by Category" description="Installed base by equipment category" icon="bar-chart" class="min-w-0">
+          <div class="px-4 pb-4 pt-2">
+            <amc-mini-chart type="bar" [labels]="charts().category.labels" [values]="charts().category.values" [height]="220" ariaLabel="Assets by category" />
+          </div>
+        </amc-panel>
+        <amc-panel title="Criticality" description="Influences SLA, PM frequency and escalation" icon="alert-triangle" class="min-w-0">
+          <div class="px-4 pb-4 pt-2">
+            <amc-mini-chart type="donut" [labels]="charts().criticality.labels" [values]="charts().criticality.values" [height]="220" ariaLabel="Asset criticality distribution" />
+          </div>
+        </amc-panel>
+      </section>
+    }
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      @if (isVisible('attention')) {
+        <amc-panel class="lg:col-span-2" title="Assets Requiring Attention" description="Breakdowns, overdue maintenance, repeated failures and uncovered critical assets" icon="alert-circle" [padded]="false">
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.requiringAttention, empty: 'No assets need attention.', mode: 'attention' }" />
+        </amc-panel>
+      }
+      @if (isVisible('warranty-expiry')) {
+        <amc-panel title="Warranty Expiry" [description]="'Warranties ending within ' + expiringDays + ' days'" icon="shield-check" [padded]="false">
+          <a panelActions routerLink="/app/assets/warranties" class="amc-link text-xs">Warranties</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.warrantyExpiry, empty: 'No warranties expiring soon.', mode: 'days' }" />
+        </amc-panel>
+      }
+      @if (isVisible('upcoming-maintenance')) {
+        <amc-panel title="Upcoming Maintenance" description="Next preventive maintenance due" icon="calendar-check" [padded]="false">
+          <a panelActions routerLink="/app/assets/list" [queryParams]="{ flag: 'pm-due' }" class="amc-link text-xs">View all</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.upcomingMaintenance, empty: 'No maintenance scheduled.', mode: 'due' }" />
+        </amc-panel>
+      }
+      @if (isVisible('open-requests')) {
+        <amc-panel title="Assets with Open Service Requests" icon="ticket" [padded]="false">
+          <a panelActions routerLink="/app/assets/list" [queryParams]="{ flag: 'open-sr' }" class="amc-link text-xs">View all</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.openServiceRequests, empty: 'No open service requests.', mode: 'count', unit: 'open SR', tab: 'service-requests' }" />
+        </amc-panel>
+      }
+      @if (isVisible('open-work-orders')) {
+        <amc-panel title="Assets with Open Work Orders" icon="wrench" [padded]="false">
+          <a panelActions routerLink="/app/assets/list" [queryParams]="{ flag: 'open-wo' }" class="amc-link text-xs">View all</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.openWorkOrders, empty: 'No open work orders.', mode: 'count', unit: 'open WO', tab: 'work-orders' }" />
+        </amc-panel>
+      }
+      @if (isVisible('repeated-failures')) {
+        <amc-panel title="Assets with Repeated Failures" description="Corrective, breakdown and emergency calls" icon="alert-triangle" [padded]="false">
+          <a panelActions routerLink="/app/assets/list" [queryParams]="{ flag: 'repeated-failures' }" class="amc-link text-xs">View all</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.repeatedFailures, empty: 'No repeated failures detected.', mode: 'count', unit: 'failure', tab: 'service-history' }" />
+        </amc-panel>
+      }
+      @if (isVisible('recently-added')) {
+        <amc-panel title="Recently Added Assets" icon="box" [padded]="false">
+          <a panelActions routerLink="/app/assets/list" class="amc-link text-xs">View all</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.recentlyAdded, empty: 'No assets added yet.', mode: 'relative' }" />
+        </amc-panel>
+      }
+      @if (isVisible('recently-installed')) {
+        <amc-panel title="Recently Installed Assets" icon="wrench" [padded]="false">
+          <a panelActions routerLink="/app/assets/installations" class="amc-link text-xs">Installations</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.recentlyInstalled, empty: 'No recent installations.', mode: 'date' }" />
+        </amc-panel>
+      }
+      @if (isVisible('transferred')) {
+        <amc-panel title="Recently Transferred Assets" icon="arrow-right" [padded]="false">
+          <a panelActions routerLink="/app/assets/transfers" class="amc-link text-xs">Transfers</a>
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: data()?.recentlyTransferred, empty: 'No recent transfers.', mode: 'relative' }" />
+        </amc-panel>
+      }
+    </div>
+  }
+</div>
+
+<amc-asset-picker-dialog [(open)]="pickerOpen" [title]="pickerAction()" description="Choose the asset; its active entitlement is evaluated next." (picked)="onPicked($event)" />
+
+<ng-template #rows let-items let-empty="empty" let-mode="mode" let-unit="unit" let-tab="tab">
+  @if (!data()) {
+    <div class="space-y-4 p-4 sm:p-5" aria-busy="true">
+      @for (i of skeletons; track i) {
+        <div class="flex items-center gap-3">
+          <amc-skeleton class="h-9 w-9 rounded-lg" />
+          <div class="flex-1 space-y-2"><amc-skeleton class="h-3.5 w-2/3" /><amc-skeleton class="h-3 w-1/3" /></div>
+        </div>
+      }
+    </div>
+  } @else if (!items?.length) {
+    <amc-empty-state [compact]="true" icon="check-circle" title="All clear" [message]="empty" />
+  } @else {
+    <ul class="divide-y divide-line">
+      @for (row of items; track row.id + $index) {
+        <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+          @if (mode === 'days' || mode === 'due') {
+            <span class="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-center leading-none" [class]="row.count < 0 ? 'bg-danger-subtle text-danger' : row.count <= 14 ? 'bg-warn-subtle text-warn' : 'bg-info-subtle text-info'">
+              <span class="text-sm font-semibold tabular-nums">{{ row.count < 0 ? -row.count : row.count }}</span>
+              <span class="text-[10px]">{{ row.count < 0 ? 'late' : 'days' }}</span>
+            </span>
+          }
+          <div class="min-w-0 flex-1">
+            <a [routerLink]="['/app/assets', row.id]" [queryParams]="tab ? { tab } : {}" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ row.name }}</a>
+            <p class="truncate text-xs text-ink-muted">
+              <span class="font-mono">{{ row.code }}</span> · {{ row.customerName ?? 'No customer' }}{{ row.siteName ? ' · ' + row.siteName : '' }}
+            </p>
+            @if (row.detail && mode !== 'count') {
+              <p class="truncate text-xs" [class]="mode === 'attention' ? 'text-danger' : 'text-ink-subtle'">{{ row.detail }}</p>
+            }
+          </div>
+          <div class="shrink-0 text-right">
+            @if (mode === 'count') {
+              <span class="text-sm font-semibold tabular-nums text-ink">{{ row.count }}</span>
+              <p class="text-xs text-ink-muted">{{ unit }}{{ row.count === 1 ? '' : 's' }}</p>
+            } @else {
+              <amc-status-badge [label]="row.status" [tone]="tone(row.status)" />
+              @if (row.date && (mode === 'date' || mode === 'relative' || mode === 'days' || mode === 'due')) {
+                <p class="mt-1 text-xs text-ink-muted tabular-nums">{{ mode === 'relative' ? relativeTime(row.date) : formatDate(row.date) }}</p>
+              }
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</ng-template>

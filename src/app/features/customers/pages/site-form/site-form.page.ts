@@ -318,8 +318,7 @@ export class SiteFormPage implements HasUnsavedChanges, OnInit {
       if (intent === 'contact') {
         void this.router.navigate(['/app/customers/sites', site.id], { queryParams: { tab: 'contacts', action: 'add-contact' } });
       } else if (intent === 'asset') {
-        this.handoff.open('Add Asset', { customerName: this.selectedCustomer()?.name ?? '', siteName: site.name });
-        void this.router.navigate(['/app/customers/sites', site.id], { queryParams: { tab: 'assets' } });
+        this.handoff.open('Add Asset', { customerName: this.selectedCustomer()?.name ?? '', siteName: site.name, customerId: site.customerId, siteId: site.id });
       } else {
         void this.router.navigate(['/app/customers/sites', site.id]);
       }

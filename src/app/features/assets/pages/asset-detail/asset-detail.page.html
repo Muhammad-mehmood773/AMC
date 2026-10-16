@@ -1,0 +1,414 @@
+@if (assetRes.error()) {
+  <div class="amc-card">
+    <amc-error-state title="Asset not found" message="This asset could not be loaded. It may not exist or the link is incorrect." (retry)="assetRes.reload()" />
+    <div class="-mt-6 pb-8 text-center"><a routerLink="/app/assets/list" class="amc-link text-sm">Back to assets</a></div>
+  </div>
+} @else if (!a()) {
+  <div class="space-y-5" aria-busy="true">
+    <div class="amc-card space-y-3 p-5"><amc-skeleton class="h-6 w-72" /><amc-skeleton class="h-4 w-48" /></div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">@for (i of [1, 2, 3, 4, 5]; track i) { <amc-skeleton class="h-24 rounded-xl" /> }</div>
+  </div>
+} @else {
+  @let asset = a()!;
+  <div class="space-y-5">
+    <amc-breadcrumbs [items]="[{ label: 'Assets & Installed Base', path: '/app/assets/dashboard' }, { label: 'Assets', path: '/app/assets/list' }, { label: asset.name }]" />
+
+    <!-- Asset header -->
+    <header class="amc-card p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-brand"><amc-icon name="box" [size]="24" /></span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ asset.name }}</h1>
+              <amc-status-badge [label]="asset.status" [tone]="statusTone[asset.status]" />
+              <amc-status-badge [label]="asset.criticality" [tone]="criticalityTone[asset.criticality]" [dot]="false" />
+            </div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+              <span class="font-mono text-[13px]">{{ asset.code }}</span><span class="text-ink-subtle">·</span>
+              <span class="font-mono text-[13px]">{{ asset.tag }}</span><span class="text-ink-subtle">·</span>
+              <span>{{ asset.manufacturer }} {{ asset.model }}</span><span class="text-ink-subtle">·</span>
+              <span>SN <span class="font-mono text-[13px]">{{ asset.serialNumber || '—' }}</span></span>
+            </p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Customer</dt><amc-icon name="building" class="text-ink-subtle" />
+                <dd>
+                  @if (asset.customerId) { <a [routerLink]="['/app/customers', asset.customerId]" class="font-medium text-ink hover:text-brand">{{ asset.customerName }}</a> } @else { <span class="text-ink-muted">{{ asset.ownership.owner || 'No customer' }}</span> }
+                </dd>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <dt class="sr-only">Site</dt><amc-icon name="map-pin" class="text-ink-subtle" />
+                <dd>
+                  @if (asset.siteId) { <a [routerLink]="['/app/customers/sites', asset.siteId]" class="text-ink hover:text-brand">{{ asset.siteName }}</a> } @else { <span class="text-ink-muted">No site</span> }
+                </dd>
+              </div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Warranty</dt><dd><amc-status-badge [label]="asset.warrantyStatus" [tone]="warrantyTone[asset.warrantyStatus]" /></dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Contract / AMC</dt><dd><amc-status-badge [label]="asset.coverageState" [tone]="coverageTone[asset.coverageState]" /></dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          <button type="button" class="amc-btn-icon" aria-label="Refresh" title="Refresh" (click)="refresh()"><amc-icon name="refresh" [class.animate-spin]="assetRes.isLoading()" /></button>
+          <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="blocked()" (click)="startHandoff('Create Service Request')"><amc-icon name="ticket" /> Create Service Request</button>
+          <a [routerLink]="['/app/assets', asset.id, 'edit']" class="amc-btn-primary"><amc-icon name="pencil" /> Edit Asset</a>
+          <amc-action-menu label="Actions" [items]="moreActions()" (action)="onAction($event)" />
+        </div>
+      </div>
+    </header>
+
+    @if (blocked()) {
+      <div class="flex items-center gap-3 rounded-xl border border-line-strong bg-surface-sunken p-4" role="status">
+        <amc-icon name="lock" [size]="18" class="text-ink-muted" />
+        <p class="text-sm text-ink-muted">This asset is <span class="font-medium text-ink">{{ asset.status.toLowerCase() }}</span>. New service requests, work orders, maintenance, components and transfers are blocked. Its full history is retained.</p>
+      </div>
+    } @else if (asset.status === 'Transferred') {
+      <div class="flex items-center gap-3 rounded-xl border border-info/30 bg-info-subtle p-4" role="status">
+        <amc-icon name="arrow-right" [size]="18" class="text-info" />
+        <p class="flex-1 text-sm text-ink-muted">A transfer has been approved and the asset is in movement. Complete the movement to assign the new location.</p>
+        <button type="button" class="amc-btn-secondary amc-btn-sm" (click)="selectTab('location')">View transfer</button>
+      </div>
+    } @else if (attention().length) {
+      <div class="flex items-start gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="status">
+        <amc-icon name="alert-triangle" [size]="18" class="mt-0.5 text-warn" />
+        <p class="text-sm text-ink"><span class="font-medium">Requires attention:</span> {{ attention().join(' · ') }}</p>
+      </div>
+    }
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" [maxVisible]="10" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="space-y-5">
+          <section class="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Asset indicators">
+            <amc-kpi-card label="Asset Age" icon="clock" tone="neutral" [value]="age()" [hint]="asset.installation.date ? 'Installed ' + formatDate(asset.installation.date) : 'Awaiting installation'" />
+            <amc-kpi-card label="Warranty Remaining" icon="shield-check" [tone]="asset.warrantyStatus === 'Active' ? 'ok' : asset.warrantyStatus === 'Expiring Soon' ? 'warn' : 'neutral'" [value]="warrantyRemaining()" [hint]="asset.warrantyEnd ? 'Ends ' + formatDate(asset.warrantyEnd) : ''" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'warranty' }" />
+            <amc-kpi-card label="Active Contract" icon="file-check" [tone]="asset.activeContractNumber ? 'ok' : 'neutral'" [value]="asset.activeContractNumber ?? 'None'" [hint]="asset.amcActive ? 'AMC active' : 'No active AMC'" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'contracts' }" />
+            <amc-kpi-card label="Last Service" icon="wrench" tone="info" [value]="asset.lastServiceDate ? formatDate(asset.lastServiceDate) : '—'" [hint]="asset.lastServiceDate ? relativeTime(asset.lastServiceDate) : 'No service yet'" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'service-history' }" />
+            <amc-kpi-card label="Next Maintenance" icon="calendar-check" [tone]="nextMaintenance()?.status === 'Overdue' ? 'danger' : 'brand'" [value]="asset.operational.nextMaintenanceDate ? formatDate(asset.operational.nextMaintenanceDate) : '—'" [hint]="nextMaintenance()?.plan ?? asset.service.maintenancePlan" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'maintenance' }" />
+            <amc-kpi-card label="Open Service Requests" icon="ticket" tone="warn" [value]="asset.openServiceRequests" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'service-requests' }" />
+            <amc-kpi-card label="Open Work Orders" icon="wrench" tone="info" [value]="asset.openWorkOrders" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'work-orders' }" />
+            <amc-kpi-card label="Total Service Visits" icon="check-circle" tone="ok" [value]="asset.totalServiceVisits" [hint]="asset.failuresLast180Days + ' failures in 180 days'" />
+            <amc-kpi-card label="Total Parts Used" icon="box" tone="accent" [value]="asset.totalPartsUsed" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'parts' }" />
+            <amc-kpi-card label="Total Service Cost" icon="wallet" tone="brand" [value]="formatCurrency(asset.totalServiceCost, asset.ownership.currency, true)" [link]="'/app/assets/' + asset.id" [queryParams]="{ tab: 'costs' }" />
+          </section>
+
+          <amc-panel title="Asset lifecycle" description="Operational lifecycle stage" icon="activity">
+            <ol class="flex gap-1 overflow-x-auto pb-1">
+              @for (stage of stages; track stage; let i = $index) {
+                <li class="flex min-w-24 flex-1 flex-col items-center gap-1.5 text-center">
+                  <span class="h-1.5 w-full rounded-full" [class]="i < stageIndex() ? 'bg-brand' : i === stageIndex() ? 'bg-brand ring-2 ring-brand/30' : 'bg-surface-sunken'"></span>
+                  <span class="text-[10px] leading-tight" [class]="i === stageIndex() ? 'font-semibold text-brand' : i < stageIndex() ? 'text-ink' : 'text-ink-subtle'">{{ stage }}</span>
+                </li>
+              }
+            </ol>
+          </amc-panel>
+
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div class="space-y-5 xl:col-span-2">
+              <amc-panel title="Asset details" icon="box">
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+                  <amc-detail-item label="Asset Category" [value]="asset.category" />
+                  <amc-detail-item label="Asset Type" [value]="asset.type" />
+                  <amc-detail-item label="Sub-Type" [value]="asset.subType" />
+                  <amc-detail-item label="Product Family" [value]="asset.productFamily" />
+                  <amc-detail-item label="Service Class" [value]="asset.serviceClass" />
+                  <amc-detail-item label="Maintenance Class" [value]="asset.maintenanceClass" />
+                  <amc-detail-item label="Ownership" [value]="asset.ownership.type + ' · ' + asset.ownership.owner" />
+                  <amc-detail-item label="Installed By" [value]="asset.installation.installedBy" />
+                  <amc-detail-item label="Responsible Team" [value]="asset.operational.responsibleTeam" />
+                  <amc-detail-item label="Assigned Technician" [value]="asset.operational.assignedTechnician" />
+                  <amc-detail-item label="Service Region" [value]="asset.operational.serviceRegion" />
+                  <amc-detail-item label="Service Territory" [value]="asset.territoryName" />
+                  <amc-detail-item label="SLA" [value]="asset.slaName" />
+                  <amc-detail-item label="Service Plan" [value]="asset.service.servicePlan" />
+                  <amc-detail-item label="Service Frequency" [value]="asset.service.serviceFrequency" />
+                  <amc-detail-item label="Service Priority" [value]="asset.service.servicePriority" />
+                </dl>
+              </amc-panel>
+
+              @if (criticality(); as cp) {
+                <amc-panel title="Criticality impact" [description]="asset.criticality + ' criticality influences service behaviour'" icon="alert-triangle">
+                  <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <amc-detail-item label="SLA" [value]="cp.sla" />
+                    <amc-detail-item label="Response Time" [value]="cp.responseTime" />
+                    <amc-detail-item label="PM Frequency" [value]="cp.pmFrequency" />
+                    <amc-detail-item label="Escalation" [value]="cp.escalation" />
+                    <amc-detail-item label="Technician Priority" [value]="cp.technicianPriority" />
+                    <amc-detail-item label="Spare Parts Planning" [value]="cp.sparesPlanning" />
+                    <amc-detail-item label="Service Scheduling" [value]="cp.scheduling" />
+                  </dl>
+                </amc-panel>
+              }
+
+              <amc-panel title="Recent service" icon="wrench" [padded]="false">
+                <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('service-history')">View all</button>
+                <ul class="divide-y divide-line">
+                  @for (s of services().slice(0, 5); track s.id) {
+                    <li class="flex items-start gap-3 px-4 py-3 sm:px-5">
+                      <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted"><amc-icon [name]="typeIcon[s.serviceType]" /></span>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2"><p class="text-sm font-medium text-ink">{{ s.serviceType }}</p><amc-status-badge [label]="s.result" [tone]="resultTone[s.result]" /></div>
+                        <p class="mt-0.5 truncate text-sm text-ink-muted">{{ s.workPerformed }}</p>
+                        <p class="mt-0.5 text-xs text-ink-subtle">{{ formatDate(s.date) }} · {{ s.technician }} · {{ s.workOrder }}</p>
+                      </div>
+                    </li>
+                  } @empty {
+                    <li class="p-5 text-center text-sm text-ink-muted">No service recorded yet.</li>
+                  }
+                </ul>
+              </amc-panel>
+            </div>
+
+            <div class="space-y-5">
+              <amc-panel title="Identification" description="Scan to open this asset in the field" icon="qr-code">
+                <div class="flex flex-col items-center gap-3">
+                  <amc-qr-code [value]="qrValue()" [size]="148" />
+                  <amc-barcode class="w-full max-w-64" [value]="asset.barcode || asset.tag" [height]="56" />
+                  <dl class="grid w-full grid-cols-2 gap-3 border-t border-line pt-3">
+                    <amc-detail-item label="Asset ID" [value]="asset.code" [mono]="true" />
+                    <amc-detail-item label="Asset Tag" [value]="asset.tag" [mono]="true" />
+                    <amc-detail-item label="Serial Number" [value]="asset.serialNumber" [mono]="true" />
+                    <amc-detail-item label="Barcode" [value]="asset.barcode" [mono]="true" />
+                    <amc-detail-item class="col-span-2" label="Manufacturer Model" [value]="asset.manufacturer + ' ' + asset.model" />
+                    <amc-detail-item class="col-span-2" label="RFID Reference" [value]="asset.rfid" [mono]="true" />
+                  </dl>
+                  <button type="button" class="amc-btn-secondary amc-btn-sm w-full" (click)="labelOpen.set(true)"><amc-icon name="printer" [size]="14" /> Print label</button>
+                </div>
+              </amc-panel>
+
+              <amc-panel title="Upcoming maintenance" icon="calendar-check" [padded]="false">
+                <button panelActions type="button" class="amc-link text-xs" (click)="selectTab('maintenance')">View all</button>
+                <ul class="divide-y divide-line">
+                  @for (m of r()?.maintenance?.slice(0, 4) ?? []; track m.id) {
+                    <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                      <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-ink">{{ m.plan }}</p><p class="text-xs text-ink-muted">{{ m.frequency }}</p></div>
+                      <div class="shrink-0 text-right"><amc-status-badge [label]="m.status" [tone]="maintenanceTone[m.status]" /><p class="mt-1 text-xs text-ink-muted tabular-nums">{{ formatDate(m.nextDue) }}</p></div>
+                    </li>
+                  } @empty {
+                    <li class="p-5 text-center text-sm text-ink-muted">No maintenance scheduled.</li>
+                  }
+                </ul>
+              </amc-panel>
+
+              <amc-panel title="Record" icon="info">
+                <dl class="space-y-3">
+                  <amc-detail-item label="Created" [value]="formatDateTime(asset.createdAt) + ' · ' + asset.createdBy" />
+                  <amc-detail-item label="Last Updated" [value]="asset.updatedAt ? formatDateTime(asset.updatedAt) + ' · ' + asset.updatedBy : null" />
+                  <amc-detail-item label="Internal Notes" [value]="asset.notes.internalNotes" />
+                  <amc-detail-item label="Technician Instructions" [value]="asset.notes.technicianInstructions" />
+                </dl>
+              </amc-panel>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('technical') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <amc-panel class="xl:col-span-2" title="Technical information" [description]="asset.category + ' · ' + asset.type" icon="sliders">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              @for (f of technicalFields; track f.key) {
+                <amc-detail-item [label]="f.label" [value]="asset.technical[f.key]" />
+              }
+              <amc-detail-item class="col-span-2 lg:col-span-3" label="Technical Specifications" [value]="asset.technical.specifications" />
+            </dl>
+            @if (attributeLabels().length) {
+              <div class="mt-5 border-t border-line pt-4">
+                <p class="amc-overline mb-3">Custom attributes</p>
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+                  @for (attr of attributeLabels(); track attr.label) { <amc-detail-item [label]="attr.label" [value]="attr.value" /> }
+                </dl>
+              </div>
+            }
+          </amc-panel>
+          <div class="space-y-5">
+            <amc-panel title="Manufacturer" icon="building">
+              <dl class="grid grid-cols-2 gap-4">
+                <amc-detail-item label="Manufacturer" [value]="asset.manufacturer" />
+                <amc-detail-item label="Brand" [value]="asset.brand" />
+                <amc-detail-item label="Model" [value]="asset.model" />
+                <amc-detail-item label="Model Number" [value]="asset.modelNumber" [mono]="true" />
+                <amc-detail-item label="Serial Number" [value]="asset.serialNumber" [mono]="true" />
+                <amc-detail-item label="Part Number" [value]="asset.partNumber" [mono]="true" />
+                <amc-detail-item label="Product Family" [value]="asset.productFamily" />
+                <amc-detail-item label="Manufacturing Date" [value]="formatDate(asset.manufacturingDate)" />
+              </dl>
+            </amc-panel>
+            <amc-panel title="Meter & operation" icon="activity">
+              <dl class="grid grid-cols-2 gap-4">
+                <amc-detail-item label="Meter Type" [value]="asset.operational.meterType" />
+                <amc-detail-item label="Current Meter Reading" [value]="asset.operational.currentMeterReading === null ? null : formatNumber(asset.operational.currentMeterReading)" />
+                <amc-detail-item label="Initial Meter Reading" [value]="asset.installation.initialMeterReading === null ? null : formatNumber(asset.installation.initialMeterReading)" />
+                <amc-detail-item label="Operating Hours" [value]="asset.operational.operatingHours === null ? null : formatNumber(asset.operational.operatingHours)" />
+              </dl>
+            </amc-panel>
+          </div>
+        </div>
+      }
+      @case ('location') {
+        <div class="space-y-5">
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <amc-panel class="xl:col-span-2" title="Current location" description="An asset has only one current operational location" icon="map-pin">
+              <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+                <amc-detail-item label="Customer" [value]="asset.customerName" />
+                <amc-detail-item label="Site" [value]="asset.siteName" />
+                <amc-detail-item label="City" [value]="asset.siteCity" />
+                <amc-detail-item label="Service Region" [value]="asset.operational.serviceRegion" />
+                <amc-detail-item class="col-span-2 lg:col-span-4" label="Site Address" [value]="asset.siteAddress" />
+                <amc-detail-item label="Installation Location" [value]="asset.installation.location" />
+                <amc-detail-item label="Floor" [value]="asset.installation.floor" />
+                <amc-detail-item label="Room" [value]="asset.installation.room" />
+                <amc-detail-item label="Area" [value]="asset.installation.area" />
+                <amc-detail-item label="Installation Date" [value]="formatDate(asset.installation.date)" />
+                <amc-detail-item label="Commissioning Date" [value]="formatDate(asset.installation.commissioningDate)" />
+                <amc-detail-item class="col-span-2" label="Installation Notes" [value]="asset.installation.notes" />
+              </dl>
+            </amc-panel>
+            <amc-panel title="Location history" description="Previous locations are preserved" icon="history" [padded]="false">
+              <ol class="relative ml-6 border-l border-line py-3">
+                @for (loc of locationsRes.hasValue() ? locationsRes.value() : []; track loc.from + loc.location) {
+                  <li class="relative pb-4 pl-5 pr-4 last:pb-1">
+                    <span class="absolute top-1 -left-[7px] h-3 w-3 rounded-full ring-4 ring-surface" [class]="loc.current ? 'bg-brand' : 'bg-line-strong'"></span>
+                    <p class="text-sm font-medium text-ink">{{ loc.siteName ?? 'No site' }} <span class="font-normal text-ink-muted">— {{ loc.location || '—' }}</span></p>
+                    <p class="text-xs text-ink-muted">{{ loc.customerName ?? '—' }}</p>
+                    <p class="text-xs text-ink-subtle">{{ formatDate(loc.from) }} – {{ loc.to ? formatDate(loc.to) : 'present' }} · {{ loc.reason }}{{ loc.reference ? ' · ' + loc.reference : '' }}</p>
+                  </li>
+                }
+              </ol>
+            </amc-panel>
+          </div>
+          @if (pins().length) {
+            <amc-panel title="Site map" [description]="asset.siteName ?? ''" icon="globe" class="overflow-hidden" [padded]="false">
+              <amc-site-map [pins]="pins()" [height]="260" />
+            </amc-panel>
+          }
+          <div>
+            <h2 class="mb-3 text-sm font-semibold text-ink">Transfers &amp; relocations</h2>
+            <amc-transfer-manager [assetId]="asset.id" [readOnly]="blocked()" [requestFor]="pendingAction() === 'transfer' ? asset.id : null" (changed)="refresh()" />
+          </div>
+        </div>
+      }
+      @case ('components') {
+        <amc-component-manager [assetId]="asset.id" [readOnly]="blocked()" [openAddOnInit]="pendingAction() === 'add-component'" (changed)="refresh()" />
+      }
+      @case ('warranty') {
+        <amc-warranty-manager [assetId]="asset.id" [readOnly]="isEndOfLife()" [openAddOnInit]="pendingAction() === 'add-warranty'" (changed)="refresh()" />
+      }
+      @case ('contracts') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex min-h-14 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <div>
+              <h2 class="text-sm font-semibold text-ink">Contracts / AMCs</h2>
+              <p class="text-xs text-ink-muted">Agreements covering this asset. Expired agreements do not provide active entitlement.</p>
+            </div>
+            <a routerLink="/app/assets/entitlements" class="amc-link text-xs">All entitlements</a>
+          </div>
+          <amc-data-table [rows]="coverages()" [columns]="coverageCols" [trackBy]="trackById" [loading]="coveragesRes.isLoading()" emptyIcon="file-check" emptyTitle="No contracts or AMCs" emptyMessage="Link the asset to a contract or AMC from the asset record." />
+        </section>
+      }
+      @case ('entitlements') {
+        <amc-entitlement-view [assetId]="asset.id" />
+      }
+      @case ('maintenance') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <div>
+              <h2 class="text-sm font-semibold text-ink">Preventive maintenance</h2>
+              <p class="text-xs text-ink-muted">Plan: {{ asset.service.maintenancePlan || '—' }} · {{ asset.service.serviceFrequency || 'No frequency' }} · recommended {{ criticality()?.pmFrequency }} for {{ asset.criticality.toLowerCase() }} criticality · last done {{ asset.operational.lastMaintenanceDate ? formatDate(asset.operational.lastMaintenanceDate) : '—' }}</p>
+            </div>
+            <button type="button" class="amc-btn-secondary amc-btn-sm" [disabled]="blocked()" (click)="startHandoff('Schedule Maintenance')"><amc-icon name="calendar-check" [size]="14" /> Schedule Maintenance</button>
+          </div>
+          <amc-data-table [rows]="r()?.maintenance ?? []" [columns]="maintenanceCols" [trackBy]="trackById" [loading]="relatedRes.isLoading()" emptyIcon="calendar-check" emptyTitle="No maintenance scheduled" emptyMessage="Preventive maintenance plans for this asset will appear here." />
+        </section>
+      }
+      @case ('service-requests') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex min-h-14 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <h2 class="text-sm font-semibold text-ink">Service requests</h2>
+            <button type="button" class="amc-btn-secondary amc-btn-sm" [disabled]="blocked()" (click)="startHandoff('Create Service Request')"><amc-icon name="plus" [size]="14" /> Create Service Request</button>
+          </div>
+          <amc-data-table [rows]="r()?.serviceRequests ?? []" [columns]="requestCols" [trackBy]="trackById" [loading]="relatedRes.isLoading()" emptyIcon="ticket" emptyTitle="No service requests" emptyMessage="Service requests raised for this asset will appear here." />
+        </section>
+      }
+      @case ('work-orders') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex min-h-14 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <h2 class="text-sm font-semibold text-ink">Work orders</h2>
+            <button type="button" class="amc-btn-secondary amc-btn-sm" [disabled]="blocked()" (click)="startHandoff('Create Work Order')"><amc-icon name="plus" [size]="14" /> Create Work Order</button>
+          </div>
+          <amc-data-table [rows]="r()?.workOrders ?? []" [columns]="workOrderCols" [trackBy]="trackById" [loading]="relatedRes.isLoading()" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Work orders performed on this asset will appear here." />
+        </section>
+      }
+      @case ('parts') {
+        <section class="amc-card overflow-hidden">
+          <amc-data-table tableId="asset-parts" [entity]="{ singular: 'part line', plural: 'part lines' }" [rows]="partsRes.hasValue() ? partsRes.value() : []" [columns]="partCols" [trackBy]="trackById" [loading]="partsRes.isLoading()" emptyIcon="box" emptyTitle="No parts used" emptyMessage="Spare parts consumed during service visits will appear here." />
+        </section>
+      }
+      @case ('service-history') {
+        <amc-service-history-view [assetId]="asset.id" [refreshKey]="refreshKey()" />
+      }
+      @case ('documents') {
+        <amc-asset-document-manager [assetId]="asset.id" [openUploadOnInit]="pendingAction() === 'upload'" (changed)="refresh()" />
+      }
+      @case ('costs') {
+        @let c = costs();
+        <div class="space-y-5">
+          <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-label="Cost indicators">
+            <amc-kpi-card label="Purchase Cost" icon="receipt" tone="neutral" [value]="formatCurrency(asset.ownership.purchaseCost, asset.ownership.currency, true)" [hint]="asset.ownership.purchaseDate ? 'Purchased ' + formatDate(asset.ownership.purchaseDate) : ''" />
+            <amc-kpi-card label="Total Service Cost" icon="wallet" tone="brand" [value]="formatCurrency(c.total, asset.ownership.currency, true)" [hint]="asset.totalServiceVisits + ' visits'" />
+            <amc-kpi-card label="Labor Cost" icon="users" tone="info" [value]="formatCurrency(c.labor, asset.ownership.currency, true)" />
+            <amc-kpi-card label="Parts Cost" icon="box" tone="accent" [value]="formatCurrency(c.parts, asset.ownership.currency, true)" />
+            <amc-kpi-card label="Maintenance vs Repairs" icon="bar-chart" tone="warn" [value]="formatCurrency(c.maintenance, asset.ownership.currency, true)" [hint]="formatCurrency(c.repairs, asset.ownership.currency, true) + ' on repairs'" />
+            <amc-kpi-card label="Chargeable" icon="alert-circle" tone="danger" [value]="formatCurrency(c.chargeable, asset.ownership.currency, true)" [hint]="formatCurrency(c.covered, asset.ownership.currency, true) + ' covered'" />
+          </section>
+          <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <amc-panel title="Service cost by year" icon="bar-chart">
+              <amc-mini-chart type="bar" [labels]="c.years.labels" [values]="c.years.values" [height]="240" ariaLabel="Service cost by year" />
+            </amc-panel>
+            <amc-panel title="Cost by service type" icon="pie-chart" [padded]="false">
+              <ul class="divide-y divide-line">
+                @for (row of c.types; track row.type) {
+                  <li class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm sm:px-5">
+                    <span class="text-ink">{{ row.type }} <span class="text-xs text-ink-muted">· {{ row.count }} visit{{ row.count === 1 ? '' : 's' }}</span></span>
+                    <span class="font-medium tabular-nums text-ink">{{ formatCurrency(row.cost, asset.ownership.currency) }}</span>
+                  </li>
+                } @empty {
+                  <li class="p-5 text-center text-sm text-ink-muted">No costs recorded.</li>
+                }
+              </ul>
+            </amc-panel>
+          </div>
+          <amc-panel title="Financial references" icon="wallet">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+              <amc-detail-item label="Ownership Type" [value]="asset.ownership.type" />
+              <amc-detail-item label="Asset Owner" [value]="asset.ownership.owner" />
+              <amc-detail-item label="Supplier" [value]="asset.ownership.supplier" />
+              <amc-detail-item label="Purchase Reference" [value]="asset.ownership.purchaseReference" [mono]="true" />
+              <amc-detail-item label="Depreciation Reference" [value]="asset.ownership.depreciationReference" [mono]="true" />
+              <amc-detail-item label="Financial Asset Reference" [value]="asset.ownership.financialAssetReference" [mono]="true" />
+              <amc-detail-item label="Currency" [value]="asset.ownership.currency" />
+            </dl>
+          </amc-panel>
+        </div>
+      }
+      @case ('activity') {
+        <amc-lifecycle-timeline [assetId]="asset.id" [refreshKey]="refreshKey()" />
+      }
+    }
+  </div>
+
+  <amc-dialog size="sm" title="Asset label" description="QR code and barcode for field identification" [(open)]="labelOpen">
+    <div id="asset-label" style="border:1px solid #cbd5e1;border-radius:12px;padding:16px;text-align:center;background:#fff;color:#0f172a">
+      <p style="margin:0 0 4px;font-weight:600;font-size:14px">{{ asset.name }}</p>
+      <p style="margin:0 0 10px;font-size:12px;font-family:monospace">{{ asset.code }} · {{ asset.tag }}</p>
+      <amc-qr-code [value]="qrValue()" [size]="160" />
+      <amc-barcode style="display:block;margin-top:8px" [value]="asset.barcode || asset.tag" [height]="60" />
+      <p style="margin:8px 0 0;font-size:11px">{{ asset.customerName ?? '' }}{{ asset.siteName ? ' · ' + asset.siteName : '' }}</p>
+      <p style="margin:2px 0 0;font-size:11px">SN {{ asset.serialNumber }}</p>
+    </div>
+    <ng-container dialogFooter>
+      <button type="button" class="amc-btn-secondary" (click)="labelOpen.set(false)">Close</button>
+      <button type="button" class="amc-btn-primary" (click)="printLabel()"><amc-icon name="printer" /> Print</button>
+    </ng-container>
+  </amc-dialog>
+}

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
 
 export type HandoffAction =
@@ -16,15 +17,27 @@ const TARGET_MODULE: Record<HandoffAction, string> = {
   'Add Asset': 'Asset / Installed Base Management',
 };
 
+export interface HandoffContext {
+  readonly customerName: string;
+  readonly siteName?: string;
+  readonly customerId?: string;
+  readonly siteId?: string;
+}
+
 /**
- * Hand-off point for actions owned by downstream modules. Once those modules are delivered,
- * replace the notification with navigation to their create screens using the given context.
+ * Hand-off point for actions owned by downstream modules. Delivered modules (Asset / Installed
+ * Base) are opened directly with the given context; the others notify until they are delivered.
  */
 @Injectable()
 export class ModuleHandoff {
   private readonly notifications = inject(NotificationPort);
+  private readonly router = inject(Router);
 
-  open(action: HandoffAction, context: { customerName: string; siteName?: string }): void {
+  open(action: HandoffAction, context: HandoffContext): void {
+    if (action === 'Add Asset') {
+      void this.router.navigate(['/app/assets/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
+      return;
+    }
     const scope = context.siteName ? `${context.customerName} · ${context.siteName}` : context.customerName;
     this.notifications.info(
       `${action} for ${scope} continues in the ${TARGET_MODULE[action]} module.`,

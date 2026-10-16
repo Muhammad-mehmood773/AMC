@@ -1,0 +1,185 @@
+<div class="space-y-5">
+  <amc-page-header
+    title="Assets"
+    subtitle="Installed base across customers and service locations, with warranty, contract and maintenance status."
+    [breadcrumbs]="[{ label: 'Assets & Installed Base', path: '/app/assets/dashboard' }, { label: 'Assets' }]"
+  >
+    <button type="button" class="amc-btn-secondary" [disabled]="!filtered().length" (click)="export()">
+      <amc-icon name="download" />
+      <span class="hidden sm:inline">Export</span>
+    </button>
+    <a routerLink="/app/assets/new" class="amc-btn-primary" title="New asset (N)">
+      <amc-icon name="plus" />
+      Add Asset
+    </a>
+  </amc-page-header>
+
+  @if (recentlyViewed().length > 0) {
+    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+      <span class="flex items-center gap-1.5 text-xs font-medium text-ink-muted"><amc-icon name="clock" [size]="12" /> Recently viewed</span>
+      @for (r of recentlyViewed().slice(0, 6); track r.id) {
+        <a [routerLink]="['/app/assets', r.id]" class="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink hover:border-brand hover:text-brand">
+          <span class="font-mono text-[11px] text-ink-muted">{{ r.code }}</span> {{ r.name }}
+        </a>
+      }
+    </div>
+  }
+
+  @if (flagLabel()) {
+    <div class="flex items-center gap-3 rounded-xl border border-brand/30 bg-brand-subtle px-4 py-2.5 text-sm">
+      <amc-icon name="sliders" [size]="15" class="text-brand" />
+      <p class="flex-1 text-ink">Showing: <span class="font-medium">{{ flagLabel() }}</span></p>
+      <button type="button" class="amc-btn-ghost amc-btn-sm text-xs" (click)="activeFlag.set('')">Clear</button>
+    </div>
+  }
+
+  <section class="amc-card overflow-hidden">
+    <div class="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
+      <div class="flex items-center gap-1.5 rounded-lg border border-line px-2 py-1">
+        <amc-icon name="layers" [size]="12" class="text-ink-muted" />
+        <span class="text-xs text-ink-muted">Group:</span>
+        <select class="border-0 bg-transparent text-xs text-ink outline-none" aria-label="Group assets" [value]="groupBy()" (change)="groupBy.set($any($event.target).value)">
+          <option value="none">None</option>
+          <option value="category">By Category</option>
+          <option value="status">By Status</option>
+          <option value="customer">By Customer</option>
+        </select>
+      </div>
+      <span class="ml-auto hidden items-center gap-2 text-[10px] text-ink-subtle xl:flex">
+        <kbd class="rounded border border-line bg-surface-sunken px-1.5 py-0.5 font-mono">/</kbd> Search
+        <kbd class="rounded border border-line bg-surface-sunken px-1.5 py-0.5 font-mono">N</kbd> New asset
+      </span>
+    </div>
+
+    <div class="flex items-center gap-2 border-b border-line p-3 sm:p-4">
+      <div class="flex-1">
+        <amc-filter-bar searchPlaceholder="Search asset ID, tag, name, serial, customer, site, manufacturer or model…" [(search)]="search" [fields]="filterFields()" [(filters)]="filters" />
+      </div>
+      <div class="hidden shrink-0 items-center rounded-lg border border-line p-0.5 sm:flex" role="group" aria-label="View mode">
+        <button type="button" title="Table view" [class]="viewMode() === 'table' ? 'amc-btn-sm rounded-md bg-surface px-2.5 shadow-xs text-ink' : 'amc-btn-sm rounded-md px-2.5 text-ink-muted hover:text-ink'" (click)="viewMode.set('table')"><amc-icon name="list" [size]="15" /></button>
+        <button type="button" title="Card view" [class]="viewMode() === 'card' ? 'amc-btn-sm rounded-md bg-surface px-2.5 shadow-xs text-ink' : 'amc-btn-sm rounded-md px-2.5 text-ink-muted hover:text-ink'" (click)="viewMode.set('card')"><amc-icon name="layout-grid" [size]="15" /></button>
+      </div>
+    </div>
+
+    @if (viewMode() === 'table') {
+      @if (grouped()) {
+        @for (group of grouped()!; track group[0]) {
+          <div class="border-b border-line last:border-0">
+            <button type="button" class="flex w-full items-center gap-2 bg-surface-sunken px-4 py-2.5 text-left hover:bg-surface-muted" (click)="toggleGroup(group[0])">
+              <amc-icon [name]="collapsedGroups().has(group[0]) ? 'chevron-right' : 'chevron-down'" [size]="13" class="text-ink-muted" />
+              <span class="text-sm font-semibold text-ink">{{ group[0] }}</span>
+              <span class="rounded-full bg-brand-subtle px-2 py-0.5 text-xs font-medium text-brand">{{ group[1].length }}</span>
+            </button>
+            @if (!collapsedGroups().has(group[0])) {
+              <amc-data-table
+                [tableId]="'assets-grouped'"
+                [entity]="{ singular: 'asset', plural: 'assets' }"
+                [rows]="group[1]"
+                [columns]="columns"
+                [trackBy]="trackById"
+                [loading]="assets.isLoading()"
+                [actions]="rowActions"
+                [selectable]="true"
+                [bulkActions]="bulkActions"
+                [(selected)]="selected"
+                [(sort)]="sortState"
+                [toolbar]="false"
+                emptyIcon="box"
+                emptyTitle="No assets"
+                emptyMessage=""
+                (action)="onAction($event)"
+                (bulkAction)="onBulk($event)"
+              />
+            }
+          </div>
+        }
+      } @else {
+        <amc-data-table
+          tableId="assets"
+          [entity]="{ singular: 'asset', plural: 'assets' }"
+          [totalCount]="rows().length"
+          [rows]="filtered()"
+          [columns]="columns"
+          [trackBy]="trackById"
+          [loading]="assets.isLoading()"
+          [error]="assets.error() ? 'Assets could not be loaded.' : null"
+          [actions]="rowActions"
+          [selectable]="true"
+          [bulkActions]="bulkActions"
+          [(selected)]="selected"
+          [(sort)]="sortState"
+          emptyIcon="box"
+          [emptyTitle]="rows().length ? 'No assets match your filters' : 'No assets yet'"
+          [emptyMessage]="rows().length ? 'Try a different search term or clear the filters.' : 'Register your first asset to start tracking warranty, coverage and service history.'"
+          (action)="onAction($event)"
+          (bulkAction)="onBulk($event)"
+          (retry)="assets.reload()"
+        >
+          <ng-container empty>
+            @if (rows().length) {
+              <button type="button" class="amc-btn-secondary" (click)="clearFilters()">Clear filters</button>
+            } @else {
+              <a routerLink="/app/assets/new" class="amc-btn-primary"><amc-icon name="plus" /> Add Asset</a>
+            }
+          </ng-container>
+        </amc-data-table>
+      }
+    } @else {
+      @if (assets.error()) {
+        <div class="p-6 text-center text-sm text-danger">Assets could not be loaded.</div>
+      } @else if (filtered().length === 0) {
+        <div class="py-14 text-center">
+          <p class="text-sm font-semibold text-ink">{{ rows().length ? 'No assets match your filters' : 'No assets yet' }}</p>
+          <div class="mt-4">
+            <button type="button" class="amc-btn-secondary" (click)="clearFilters()">Clear filters</button>
+          </div>
+        </div>
+      } @else {
+        <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          @for (a of filtered().slice(0, 120); track a.id) {
+            <a [routerLink]="['/app/assets', a.id]" class="group flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 shadow-xs transition-colors hover:border-line-strong hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+              <div class="flex items-start gap-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-subtle text-brand"><amc-icon name="box" [size]="18" /></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-semibold text-ink group-hover:text-brand">{{ a.name }}</p>
+                  <p class="truncate font-mono text-xs text-ink-muted">{{ a.code }} · {{ a.tag }}</p>
+                </div>
+                <amc-status-badge [label]="a.status" [tone]="statusTone[a.status]" />
+              </div>
+              <dl class="space-y-1 text-xs text-ink-muted">
+                <div class="flex items-center gap-1.5 truncate"><amc-icon name="tag" [size]="12" class="shrink-0" /><dd class="truncate">{{ a.category }} · {{ a.manufacturer }} {{ a.model }}</dd></div>
+                <div class="flex items-center gap-1.5 truncate"><amc-icon name="building" [size]="12" class="shrink-0" /><dd class="truncate">{{ a.customerName ?? 'No customer' }}</dd></div>
+                <div class="flex items-center gap-1.5 truncate"><amc-icon name="map-pin" [size]="12" class="shrink-0" /><dd class="truncate">{{ a.siteName ?? 'No site' }}</dd></div>
+              </dl>
+              <div class="flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
+                <amc-status-badge [label]="'Warranty: ' + a.warrantyStatus" [tone]="warrantyTone[a.warrantyStatus]" [dot]="false" />
+                <amc-status-badge [label]="'Contract: ' + a.coverageState" [tone]="coverageTone[a.coverageState]" [dot]="false" />
+                <amc-status-badge [label]="a.criticality" [tone]="criticalityTone[a.criticality]" [dot]="false" />
+              </div>
+            </a>
+          }
+        </div>
+        <div class="border-t border-line px-4 py-3">
+          <p class="text-sm text-ink-muted">
+            <span class="font-medium text-ink tabular-nums">{{ filtered().length }}</span> assets
+            @if (filtered().length > 120) { <span class="text-ink-subtle">· showing first 120, refine filters to see more</span> }
+          </p>
+        </div>
+      }
+    }
+  </section>
+</div>
+
+<amc-dialog [title]="bulkTitle()" [description]="'Apply to ' + bulkIds().length + ' selected asset(s).'" size="sm" [(open)]="bulkOpen">
+  <div class="space-y-1.5">
+    <label class="amc-label" for="bulk-value">{{ bulkTitle().replace('Assign ', '').replace('Update ', '') }} <span class="text-danger">*</span></label>
+    <amc-select inputId="bulk-value" placeholder="Select…" [options]="bulkOptions()" [(value)]="bulkValue" />
+    @if (bulkMode() === 'status') {
+      <p class="text-xs text-ink-muted">Only allowed status transitions are applied; installation and transfer statuses are set by their workflows.</p>
+    }
+  </div>
+  <ng-container dialogFooter>
+    <button type="button" class="amc-btn-secondary" (click)="bulkOpen.set(false)">Cancel</button>
+    <button type="button" class="amc-btn-primary" [disabled]="!bulkValue() || busy()" (click)="applyBulk()">Apply</button>
+  </ng-container>
+</amc-dialog>
