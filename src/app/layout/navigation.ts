@@ -16,6 +16,7 @@ export interface NavSection {
 
 const CUSTOMER_RESERVED = 'dashboard|contacts|sites|documents|history';
 const CONTRACT_RESERVED = 'dashboard|requests|templates|clauses|review|approvals|execution|obligations|amendments|renewals|terminations|history';
+const AMC_RESERVED = 'dashboard|coverage|service-plan|schedule|visits|consumption|billing|suspensions|history';
 const ASSET_RESERVED = 'dashboard|hierarchy|installations|transfers|warranties|entitlements|documents|service-history|lifecycle';
 
 /**
@@ -94,6 +95,27 @@ export const APP_NAVIGATION: readonly NavSection[] = [
       { label: 'Renewals', icon: 'refresh', path: '/app/contracts/renewals' },
       { label: 'Terminations', icon: 'ban', path: '/app/contracts/terminations' },
       { label: 'History & Audit', icon: 'history', path: '/app/contracts/history' },
+    ],
+  },
+  {
+    label: 'AMC / Service Contracts',
+    icon: 'shield-check',
+    items: [
+      { label: 'Dashboard', icon: 'layout-dashboard', path: '/app/amc-agreements/dashboard' },
+      {
+        label: 'AMCs',
+        icon: 'shield-check',
+        path: '/app/amc-agreements/list',
+        match: new RegExp(`^/app/amc-agreements/(list|new|(?!(${AMC_RESERVED})(/|$|\\?))[^/?]+)`),
+      },
+      { label: 'Coverage', icon: 'layers', path: '/app/amc-agreements/coverage' },
+      { label: 'Service Plan', icon: 'clipboard-list', path: '/app/amc-agreements/service-plan' },
+      { label: 'PM Schedule', icon: 'calendar-check', path: '/app/amc-agreements/schedule' },
+      { label: 'Visit Plan', icon: 'calendar', path: '/app/amc-agreements/visits' },
+      { label: 'Consumption', icon: 'activity', path: '/app/amc-agreements/consumption' },
+      { label: 'Billing Schedule', icon: 'receipt', path: '/app/amc-agreements/billing' },
+      { label: 'Suspension / Termination', icon: 'pause', path: '/app/amc-agreements/suspensions' },
+      { label: 'History & Audit', icon: 'history', path: '/app/amc-agreements/history' },
     ],
   },
 ];

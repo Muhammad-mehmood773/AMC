@@ -30,7 +30,7 @@ export function assetColumns(siteName?: SiteNamer): DataColumn<AssetSummary>[] {
 export function agreementColumns(): DataColumn<AgreementSummary>[] {
   return [
     { key: 'number', label: 'Number', value: (a) => a.number, type: 'mono', sortable: true, mobile: 'hidden' },
-    { key: 'title', label: 'Title', value: (a) => a.title, secondary: (a) => a.coverage, link: (a) => `/app/contracts/${a.id}`, sortable: true, mobile: 'title' },
+    { key: 'title', label: 'Title', value: (a) => a.title, secondary: (a) => a.coverage, link: (a) => (a.kind === 'AMC' ? `/app/amc-agreements/${a.id}` : `/app/contracts/${a.id}`), sortable: true, mobile: 'title' },
     { key: 'sites', label: 'Sites', value: (a) => a.siteIds.length, type: 'number', visibility: 'xl' },
     { key: 'start', label: 'Start', value: (a) => a.startDate, type: 'date', sortable: true, visibility: 'lg', mobile: 'meta' },
     { key: 'end', label: 'End', value: (a) => a.endDate, type: 'date', sortable: true, visibility: 'md', mobile: 'meta' },

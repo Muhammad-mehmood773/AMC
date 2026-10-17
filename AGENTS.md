@@ -43,5 +43,11 @@
   rules (review → approval → e-signature → activation, versioning, amendments, renewals,
   terminations, obligations) are enforced in `mock/mock-contract-apis.ts`. Customer "Create
   Contract" hand-off opens `/app/contracts/new?customerId=…`.
+- AMC / Service Contract Management (`features/amc-agreements`, SRS 6): one operational AMC per CLM
+  contract of type "AMC Contract" (same id, `parentContractId` links back). Schedule generation
+  (non-working days / holidays), approval limit, usage alert %, cost model and billing periods live
+  in `data/amc.config.ts`. Consumption is derived from completed covered visits; coverage
+  validation (SRS 6.20) is `CoverageApi.validate`. Shared rules (operational check, territory
+  validation, activation, visit completion) are in `AmcOps` (`mock/mock-amc-apis.ts`).
 - Contextual help: pass `[help]` to `<amc-form-field>`; content lives in the feature's
   `data/field-help.ts`. Only add help where it explains a purpose or business rule.

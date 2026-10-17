@@ -38,8 +38,8 @@ export class ModuleHandoff {
       void this.router.navigate(['/app/assets/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
       return;
     }
-    if (action === 'Create Contract') {
-      void this.router.navigate(['/app/contracts/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
+    if (action === 'Create Contract' || action === 'Create AMC') {
+      void this.router.navigate([action === 'Create AMC' ? '/app/amc-agreements/new' : '/app/contracts/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
       return;
     }
     const scope = context.siteName ? `${context.customerName} · ${context.siteName}` : context.customerName;

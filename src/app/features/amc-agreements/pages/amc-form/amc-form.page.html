@@ -1,0 +1,229 @@
+@let editing = isEdit();
+@let v = value();
+
+<div class="space-y-5 pb-4">
+  <amc-page-header
+    [title]="editing ? 'Edit AMC' : 'New AMC'"
+    subtitle="Create and maintain the operational service agreement."
+    [breadcrumbs]="[{ label: 'AMC / Service Contracts', path: '/app/amc-agreements/dashboard' }, { label: 'List', path: '/app/amc-agreements/list' }, { label: editing ? 'Edit' : 'New' }]"
+  >
+    @if (editing && existing.hasValue() && existing.value()) {
+      <span class="font-mono text-xs text-ink-muted">v{{ existing.value()!.version }}</span>
+      <amc-status-badge [label]="existing.value()!.effectiveStatus" [tone]="statusTone[existing.value()!.effectiveStatus]" />
+    }
+  </amc-page-header>
+
+  @if (editing && existing.error()) {
+    <div class="amc-card"><amc-error-state title="AMC not found" message="This AMC could not be loaded." (retry)="existing.reload()" /></div>
+  } @else if (editing && !existing.hasValue()) {
+    <div class="amc-card space-y-4 p-6">@for (i of [1, 2, 3]; track i) { <amc-skeleton class="h-10 w-full" /> }</div>
+  } @else {
+    @if (readOnly()) {
+      <div class="flex items-center gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="alert">
+        <amc-icon name="lock" [size]="18" class="text-warn" />
+        <p class="text-sm text-ink">This AMC is {{ existing.value()!.effectiveStatus.toLowerCase() }}. Historical service and financial records are preserved and can no longer be changed.</p>
+      </div>
+    }
+    <form [formGroup]="form" class="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]" novalidate (ngSubmit)="save('draft')">
+      <nav class="hidden lg:block" aria-label="Form sections">
+        <ul class="sticky top-24 space-y-0.5">
+          @for (s of sections; track s.id) {
+            <li>
+              <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink" (click)="scrollTo(s.id)">
+                <amc-icon [name]="s.icon" class="text-ink-subtle" />
+                <span class="flex-1 truncate">{{ s.label }}</span>
+                @if (sectionInvalid(s.id)) { <span class="h-2 w-2 rounded-full bg-danger" aria-label="Has errors"></span> }
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <div class="min-w-0 space-y-5">
+        @let i = form.controls.identification.controls;
+        <amc-panel id="section-identification" class="scroll-mt-24" [collapsible]="true" title="A. AMC identification" icon="shield-check" formGroupName="identification">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="AMC Number" for="af-number" [control]="i.number" [help]="help.number"><input id="af-number" class="amc-input font-mono" formControlName="number" readonly /></amc-form-field>
+            <amc-form-field label="AMC Title" for="af-title" [control]="i.title" class="xl:col-span-2"><input id="af-title" class="amc-input" formControlName="title" /></amc-form-field>
+            <amc-form-field label="AMC Type" for="af-type" [control]="i.type"><amc-select inputId="af-type" formControlName="type" [options]="typeOptions" /></amc-form-field>
+            <amc-form-field label="Parent Contract" for="af-parent" [control]="i.parentContractId" [help]="help.parent"><amc-select inputId="af-parent" formControlName="parentContractId" [options]="contractOptions()" [clearable]="true" placeholder="No contract" /></amc-form-field>
+            <amc-form-field label="AMC Status" for="af-status"><input id="af-status" class="amc-input" [value]="editing ? (existing.value()?.effectiveStatus ?? '') : 'Draft'" readonly /></amc-form-field>
+            <amc-form-field label="Version" for="af-version"><input id="af-version" class="amc-input font-mono" [value]="editing ? 'v' + existing.value()?.version : 'v1.0'" readonly /></amc-form-field>
+            <amc-form-field label="External Reference" for="af-ext" [control]="i.externalReference"><input id="af-ext" class="amc-input" formControlName="externalReference" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let c = form.controls.customer.controls;
+        <amc-panel id="section-customer" class="scroll-mt-24" [collapsible]="true" title="B. Customer information" icon="building" formGroupName="customer">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Customer" for="af-customer" [control]="c.customerId" [help]="help.customer" [hint]="editing ? 'The customer cannot be changed.' : ''"><amc-select inputId="af-customer" formControlName="customerId" [options]="refs.customerOptions()" placeholder="Select customer…" /></amc-form-field>
+            <amc-form-field label="Customer Legal Entity" for="af-legal" [control]="c.legalEntity"><input id="af-legal" class="amc-input" formControlName="legalEntity" /></amc-form-field>
+            <amc-form-field label="Primary Contact" for="af-contact" [control]="c.primaryContact"><input id="af-contact" class="amc-input" formControlName="primaryContact" /></amc-form-field>
+            <amc-form-field label="Contract Manager" for="af-manager" [control]="c.contractManagerId"><amc-select inputId="af-manager" formControlName="contractManagerId" [options]="refs.managerOptions()" /></amc-form-field>
+            <amc-form-field label="Account Manager" for="af-am" [control]="c.accountManagerId"><amc-select inputId="af-am" formControlName="accountManagerId" [options]="refs.accountManagerOptions()" [clearable]="true" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let p = form.controls.period.controls;
+        <amc-panel id="section-period" class="scroll-mt-24" [collapsible]="true" title="C. Contract period" icon="calendar" formGroupName="period">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Start Date" for="af-start" [control]="p.startDate" [help]="help.period"><amc-date-picker inputId="af-start" formControlName="startDate" /></amc-form-field>
+            <amc-form-field label="End Date" for="af-end" [control]="p.endDate">
+              <amc-date-picker inputId="af-end" formControlName="endDate" [min]="v.period.startDate" />
+              @if (form.controls.period.hasError('range') && form.controls.period.touched) { <p class="text-xs text-danger" role="alert">End date must be on or after the start date.</p> }
+            </amc-form-field>
+            <amc-form-field label="Renewal Date" for="af-renewal" [control]="p.renewalDate"><amc-date-picker inputId="af-renewal" formControlName="renewalDate" /></amc-form-field>
+            <amc-form-field label="Notice Period (days)" for="af-notice" [control]="p.noticePeriodDays"><input id="af-notice" type="number" min="0" class="amc-input tabular-nums" formControlName="noticePeriodDays" /></amc-form-field>
+            <div class="flex items-end pb-1"><amc-switch formControlName="autoRenewal" label="Auto Renewal" /></div>
+            <amc-form-field label="Renewal Term (months)" for="af-term" [control]="p.renewalTermMonths"><input id="af-term" type="number" min="1" class="amc-input tabular-nums" formControlName="renewalTermMonths" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let s = form.controls.scope.controls;
+        <amc-panel id="section-scope" class="scroll-mt-24" [collapsible]="true" title="D. Coverage scope" description="Covered and excluded sites, assets and services" icon="layers" formGroupName="scope">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <amc-form-field label="Covered Sites" for="af-sites" [control]="s.siteIds" [help]="help.scope" [hint]="v.customer.customerId ? '' : 'Select a customer first.'"><amc-multi-select inputId="af-sites" formControlName="siteIds" [options]="siteOptions()" [maxChips]="3" placeholder="Select sites…" /></amc-form-field>
+            <amc-form-field label="Covered Assets" for="af-assets" [control]="s.assetIds" hint="Assets at the covered sites."><amc-multi-select inputId="af-assets" formControlName="assetIds" [options]="assetOptions()" [maxChips]="3" placeholder="Select assets…" /></amc-form-field>
+            <amc-form-field label="Covered Asset Categories" for="af-cats" [control]="s.assetCategories"><amc-multi-select inputId="af-cats" formControlName="assetCategories" [options]="refs.assetCategoryOptions()" [maxChips]="3" /></amc-form-field>
+            <amc-form-field label="Service Categories" for="af-scats" [control]="s.serviceCategories"><amc-multi-select inputId="af-scats" formControlName="serviceCategories" [options]="refs.serviceCategoryOptions()" [maxChips]="3" /></amc-form-field>
+            <amc-form-field label="Covered Services" for="af-services" [control]="s.serviceIds" class="sm:col-span-2"><amc-multi-select inputId="af-services" formControlName="serviceIds" [options]="refs.serviceOptions()" [maxChips]="4" placeholder="Select services…" /></amc-form-field>
+            <amc-form-field label="Excluded Sites" for="af-xsites" [control]="s.excludedSiteIds"><amc-multi-select inputId="af-xsites" formControlName="excludedSiteIds" [options]="siteOptions()" [maxChips]="3" placeholder="None" /></amc-form-field>
+            <amc-form-field label="Excluded Assets" for="af-xassets" [control]="s.excludedAssetIds"><amc-multi-select inputId="af-xassets" formControlName="excludedAssetIds" [options]="excludedAssetOptions()" [maxChips]="3" placeholder="None" /></amc-form-field>
+            <amc-form-field label="Excluded Services" for="af-xsvc" [control]="s.excludedServiceIds" class="sm:col-span-2"><amc-multi-select inputId="af-xsvc" formControlName="excludedServiceIds" [options]="refs.serviceOptions()" [maxChips]="4" placeholder="None" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let m = form.controls.maintenance.controls;
+        <amc-panel id="section-maintenance" class="scroll-mt-24" [collapsible]="true" title="E. Maintenance terms" icon="calendar-check" formGroupName="maintenance">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Maintenance Type" for="af-mtype" [control]="m.maintenanceType"><amc-lookup-select inputId="af-mtype" formControlName="maintenanceType" [type]="lookup.maintenanceType" /></amc-form-field>
+            <amc-form-field label="Maintenance Frequency" for="af-mfreq" [control]="m.maintenanceFrequency"><amc-select inputId="af-mfreq" formControlName="maintenanceFrequency" [options]="frequencyOptions" /></amc-form-field>
+            <amc-form-field label="Service Frequency" for="af-sfreq" [control]="m.serviceFrequency" hint="Drives preventive schedule generation."><amc-select inputId="af-sfreq" formControlName="serviceFrequency" [options]="frequencyOptions" /></amc-form-field>
+            <amc-form-field label="Number of Visits" for="af-visits" [control]="m.visitsIncluded" [help]="help.visits">
+              <input id="af-visits" type="number" min="0" class="amc-input tabular-nums" formControlName="visitsIncluded" />
+              @if (suggestedVisits() !== null && suggestedVisits() !== v.maintenance.visitsIncluded) { <button type="button" class="text-xs text-brand hover:underline" (click)="useSuggestedVisits()">Use {{ suggestedVisits() }} (sites × frequency × term)</button> }
+            </amc-form-field>
+            <amc-form-field label="Visit Duration (hours)" for="af-duration" [control]="m.visitDurationHours"><input id="af-duration" type="number" min="0" step="0.5" class="amc-input tabular-nums" formControlName="visitDurationHours" /></amc-form-field>
+            <amc-form-field label="Service Window" for="af-window" [control]="m.serviceWindow"><amc-select inputId="af-window" formControlName="serviceWindow" [options]="windowOptions" /></amc-form-field>
+            <amc-form-field label="Preferred Service Days" for="af-days" [control]="m.preferredDays" class="sm:col-span-2"><amc-multi-select inputId="af-days" formControlName="preferredDays" [options]="dayOptions" [maxChips]="4" /></amc-form-field>
+            <div></div>
+            <amc-switch formControlName="emergencyService" label="Emergency Service" />
+            <amc-switch formControlName="afterHoursService" label="After-Hours Service" />
+          </div>
+        </amc-panel>
+
+        <amc-panel id="section-labor" class="scroll-mt-24" [collapsible]="true" title="F. Labor coverage" icon="users">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3" formGroupName="labor">
+            <amc-switch formControlName="included" label="Labor Included" />
+            <amc-switch formControlName="technicianVisitsIncluded" label="Technician Visits Included" />
+            <amc-switch formControlName="overtime" label="Overtime Included" />
+            <amc-switch formControlName="emergencyLabor" label="Emergency Labor Included" />
+            <amc-switch formControlName="travel" label="Travel Included" />
+            <amc-switch formControlName="callOut" label="Call-Out Charges Included" />
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3" formGroupName="limits">
+            <amc-form-field label="Maximum Service Hours" for="af-maxh" [control]="form.controls.limits.controls.maxHours" hint="Coverage restriction; empty = unlimited."><input id="af-maxh" type="number" min="0" class="amc-input tabular-nums" formControlName="maxHours" /></amc-form-field>
+            <amc-form-field label="Maximum Call-Outs" for="af-maxc" [control]="form.controls.limits.controls.maxCallOuts"><input id="af-maxc" type="number" min="0" class="amc-input tabular-nums" formControlName="maxCallOuts" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let pa = form.controls.parts.controls;
+        <amc-panel id="section-parts" class="scroll-mt-24" [collapsible]="true" title="G. Parts & consumables" icon="wrench" formGroupName="parts">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-switch formControlName="partsIncluded" label="Parts Included" [description]="help.parts.lines[0]" />
+            <amc-switch formControlName="consumablesIncluded" label="Consumables Included" />
+            <amc-switch formControlName="majorComponents" label="Major Components Included" />
+            <amc-switch formControlName="minorParts" label="Minor Parts Included" />
+            <amc-switch formControlName="replacementCoverage" label="Replacement Coverage" />
+            <div></div>
+            <amc-form-field label="Parts Cost Limit" for="af-plimit" [control]="pa.partsCostLimit"><input id="af-plimit" type="number" min="0" class="amc-input tabular-nums" formControlName="partsCostLimit" /></amc-form-field>
+            <amc-form-field label="Consumables Limit" for="af-climit" [control]="pa.consumablesLimit"><input id="af-climit" type="number" min="0" class="amc-input tabular-nums" formControlName="consumablesLimit" /></amc-form-field>
+            <amc-form-field label="Excluded Parts" for="af-xparts" [control]="pa.excludedParts"><input id="af-xparts" class="amc-input" formControlName="excludedParts" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let sl = form.controls.sla.controls;
+        <amc-panel id="section-sla" class="scroll-mt-24" [collapsible]="true" title="H. SLA" icon="clock" formGroupName="sla">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="SLA" for="af-sla" [control]="sl.slaId"><amc-select inputId="af-sla" formControlName="slaId" [options]="refs.slaOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Response Time (hours)" for="af-resp" [control]="sl.responseHours"><input id="af-resp" type="number" min="0" class="amc-input tabular-nums" formControlName="responseHours" /></amc-form-field>
+            <amc-form-field label="Resolution Time (hours)" for="af-reso" [control]="sl.resolutionHours"><input id="af-reso" type="number" min="0" class="amc-input tabular-nums" formControlName="resolutionHours" /></amc-form-field>
+            <amc-form-field label="Service Priority" for="af-prio" [control]="sl.priority"><amc-select inputId="af-prio" formControlName="priority" [options]="priorityOptions" /></amc-form-field>
+            <amc-form-field label="Escalation Policy" for="af-esc" [control]="sl.escalationPolicy"><amc-select inputId="af-esc" formControlName="escalationPolicy" [options]="escalationOptions" /></amc-form-field>
+            <amc-form-field label="Service Hours" for="af-shours" [control]="sl.serviceHours"><amc-select inputId="af-shours" formControlName="serviceHours" [options]="serviceHourOptions" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let cm = form.controls.commercial.controls;
+        <amc-panel id="section-commercial" class="scroll-mt-24" [collapsible]="true" title="I. Commercial information" icon="wallet" formGroupName="commercial">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="AMC Value" for="af-value" [control]="cm.value" [hint]="'Up to ' + autoLimit + ' can be activated without separate approval.'">
+              <div class="relative"><span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-subtle">{{ v.commercial.currency }}</span><input id="af-value" type="number" min="0" class="amc-input pl-12 tabular-nums" formControlName="value" /></div>
+            </amc-form-field>
+            <amc-form-field label="Currency" for="af-cur" [control]="cm.currency"><amc-select inputId="af-cur" formControlName="currency" [options]="refs.currencyOptions()" /></amc-form-field>
+            <amc-form-field label="Billing Frequency" for="af-bfreq" [control]="cm.billingFrequency"><amc-select inputId="af-bfreq" formControlName="billingFrequency" [options]="billingFrequencyOptions" /></amc-form-field>
+            <amc-form-field label="Payment Terms" for="af-pt" [control]="cm.paymentTermsId"><amc-select inputId="af-pt" formControlName="paymentTermsId" [options]="refs.paymentTermOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Billing Method" for="af-bm" [control]="cm.billingMethod"><amc-select inputId="af-bm" formControlName="billingMethod" [options]="billingMethodOptions" /></amc-form-field>
+            <amc-form-field label="Tax Profile" for="af-tax" [control]="cm.taxProfileId"><amc-select inputId="af-tax" formControlName="taxProfileId" [options]="refs.taxProfileOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Discount (%)" for="af-disc" [control]="cm.discountPercent"><input id="af-disc" type="number" min="0" max="100" step="0.5" class="amc-input tabular-nums" formControlName="discountPercent" /></amc-form-field>
+            <amc-form-field label="Price Escalation (%)" for="af-escal" [control]="cm.priceEscalationPercent"><input id="af-escal" type="number" min="0" max="100" step="0.5" class="amc-input tabular-nums" formControlName="priceEscalationPercent" /></amc-form-field>
+            <amc-form-field label="Additional Charges" for="af-add" [control]="cm.additionalCharges"><input id="af-add" class="amc-input" formControlName="additionalCharges" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let o = form.controls.operational.controls;
+        <amc-panel id="section-operational" class="scroll-mt-24" [collapsible]="true" title="J. Operational information" icon="map-pin" formGroupName="operational">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Service Region" for="af-region" [control]="o.serviceRegion"><amc-select inputId="af-region" formControlName="serviceRegion" [options]="refs.regionOptions()" /></amc-form-field>
+            <amc-form-field label="Service Territory" for="af-territory" [control]="o.territoryId"><amc-select inputId="af-territory" formControlName="territoryId" [options]="refs.territoryOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Assigned Service Team" for="af-team" [control]="o.serviceTeam"><amc-lookup-select inputId="af-team" formControlName="serviceTeam" [type]="lookup.team" /></amc-form-field>
+            <amc-form-field label="Contract Manager" for="af-cm2"><input id="af-cm2" class="amc-input" [value]="refs.userName(v.customer.contractManagerId)" readonly /></amc-form-field>
+            <amc-form-field label="Default Technician Team" for="af-tteam" [control]="o.technicianTeam"><amc-lookup-select inputId="af-tteam" formControlName="technicianTeam" [type]="lookup.team" /></amc-form-field>
+            <amc-form-field label="Customer Communication Method" for="af-comm" [control]="o.communicationMethod"><amc-select inputId="af-comm" formControlName="communicationMethod" [options]="communicationOptions" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let n = form.controls.notes.controls;
+        <amc-panel id="section-documents" class="scroll-mt-24" [collapsible]="true" title="K. Documents & notes" icon="paperclip">
+          <div class="flex flex-wrap items-end gap-3">
+            <amc-form-field label="Document Type" for="af-doctype" class="min-w-56"><amc-select inputId="af-doctype" [options]="docTypeOptions" [(value)]="docType" /></amc-form-field>
+            <label for="af-files" class="amc-btn-secondary cursor-pointer" [class]="readOnly() ? 'pointer-events-none opacity-50' : ''"><amc-icon name="upload" /> Attach files<input id="af-files" type="file" multiple class="sr-only" (change)="onFiles($event)" /></label>
+          </div>
+          <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
+            @for (d of existingDocs(); track d.id) {
+              <li class="flex items-center gap-3 px-3 py-2 text-sm"><amc-icon name="paperclip" class="text-ink-subtle" /><span class="min-w-0 flex-1 truncate">{{ d.name }}</span><span class="text-xs text-ink-muted">{{ d.type }} · v{{ d.version }}</span></li>
+            }
+            @for (d of pendingDocs(); track d.name) {
+              <li class="flex items-center gap-3 px-3 py-2 text-sm"><amc-icon name="upload" class="text-brand" /><span class="min-w-0 flex-1 truncate">{{ d.name }}</span><span class="text-xs text-ink-muted">{{ d.type }} · {{ formatFileSize(d.size) }} · uploads on save</span></li>
+            }
+            @if (!pendingDocs().length && !existingDocs().length) { <li class="px-3 py-4 text-center text-sm text-ink-muted">No documents attached.</li> }
+          </ul>
+          <div class="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2" formGroupName="notes">
+            <amc-form-field label="Internal Notes" for="af-n1" [control]="n.internal"><textarea id="af-n1" class="amc-textarea min-h-16" formControlName="internal"></textarea></amc-form-field>
+            <amc-form-field label="Customer Notes" for="af-n2" [control]="n.customer"><textarea id="af-n2" class="amc-textarea min-h-16" formControlName="customer"></textarea></amc-form-field>
+          </div>
+        </amc-panel>
+      </div>
+
+      <div class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:col-span-2 lg:-mx-8 lg:px-8">
+        <div class="flex flex-wrap items-center gap-2">
+          @if (editing && !readOnly()) {
+            <input class="amc-input mr-auto h-9 w-full max-w-sm" placeholder="Change summary (recorded in the audit history)" [formControl]="form.controls.changeSummary" aria-label="Change summary" />
+          } @else {
+            <p class="mr-auto hidden text-xs text-ink-muted md:block">Fields marked <span class="text-danger">*</span> are required.</p>
+          }
+          <a [routerLink]="editing ? ['/app/amc-agreements', amcId()] : '/app/amc-agreements/list'" class="amc-btn-ghost">Cancel</a>
+          @if (!readOnly()) {
+            @if (!editing || ['Draft', 'Under Review'].includes(existing.value()?.status ?? 'Draft')) {
+              <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('approval')"><amc-icon name="send" /> Submit for Approval</button>
+            }
+            @if (!editing || ['Draft', 'Pending Approval', 'Approved', 'Pending Activation'].includes(existing.value()?.status ?? 'Draft')) {
+              <button type="button" class="amc-btn-secondary" [disabled]="saving()" (click)="save('activate')"><amc-icon name="play" /> Save &amp; Activate</button>
+            }
+            <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">@if (saving()) { <amc-spinner [size]="14" /> } @else { <amc-icon name="save" /> } {{ editing ? 'Save' : 'Save Draft' }}</button>
+          }
+        </div>
+      </div>
+    </form>
+  }
+</div>
