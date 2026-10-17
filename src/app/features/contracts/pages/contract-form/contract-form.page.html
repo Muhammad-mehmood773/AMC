@@ -1,0 +1,242 @@
+@let editing = isEdit();
+@let v = value();
+
+<div class="space-y-5 pb-4">
+  <amc-page-header
+    [title]="editing ? 'Edit Contract' : 'New Contract'"
+    subtitle="Primary contract creation and maintenance."
+    [breadcrumbs]="[{ label: 'Contracts', path: '/app/contracts/dashboard' }, { label: 'List', path: '/app/contracts/list' }, { label: editing ? 'Edit' : 'New' }]"
+  >
+    @if (editing && existing.hasValue() && existing.value()) {
+      <span class="font-mono text-xs text-ink-muted">v{{ existing.value()!.version }}</span>
+      <amc-status-badge [label]="existing.value()!.effectiveStatus" [tone]="statusTone[existing.value()!.effectiveStatus]" />
+    }
+  </amc-page-header>
+
+  @if (editing && existing.error()) {
+    <div class="amc-card"><amc-error-state title="Contract not found" message="This contract could not be loaded." (retry)="existing.reload()" /></div>
+  } @else if (editing && !existing.hasValue()) {
+    <div class="amc-card space-y-4 p-6">@for (i of [1, 2, 3]; track i) { <amc-skeleton class="h-10 w-full" /> }</div>
+  } @else {
+    @if (readOnly()) {
+      <div class="flex items-center gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="alert">
+        <amc-icon name="lock" [size]="18" class="text-warn" />
+        <p class="flex-1 text-sm text-ink">This contract is {{ existing.value()!.effectiveStatus.toLowerCase() }}. Executed versions must not be overwritten — changes are made through an amendment.</p>
+        <a routerLink="/app/contracts/amendments" [queryParams]="{ contractId: contractId(), action: 'new' }" class="amc-btn-secondary amc-btn-sm">Create Amendment</a>
+      </div>
+    }
+    <form [formGroup]="form" class="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]" novalidate (ngSubmit)="save('draft')">
+      <nav class="hidden lg:block" aria-label="Form sections">
+        <ul class="sticky top-24 space-y-0.5">
+          @for (s of sections; track s.id) {
+            <li>
+              <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink" (click)="scrollTo(s.id)">
+                <amc-icon [name]="s.icon" class="text-ink-subtle" />
+                <span class="flex-1 truncate">{{ s.label }}</span>
+                @if (sectionInvalid(s.id)) { <span class="h-2 w-2 rounded-full bg-danger" aria-label="Has errors"></span> }
+              </button>
+            </li>
+          }
+          @if (approvalPreview().length) {
+            <li class="mt-4 rounded-xl border border-line bg-surface p-3">
+              <p class="amc-overline">Approval route</p>
+              <ol class="mt-2 space-y-1.5">
+                @for (l of approvalPreview(); track l.name) {
+                  <li class="text-xs"><span class="font-medium text-ink">{{ l.name }}</span><span class="block text-ink-muted">{{ l.role }} · {{ l.reasons.join(', ') }}</span></li>
+                }
+              </ol>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <div class="min-w-0 space-y-5">
+        @let i = form.controls.identification.controls;
+        <amc-panel id="section-identification" class="scroll-mt-24" [collapsible]="true" title="A. Contract identification" description="Number, title, type, version and template" icon="file-text" formGroupName="identification">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Contract Number" for="cf-number" [control]="i.number" [help]="help.number"><input id="cf-number" class="amc-input font-mono" formControlName="number" readonly /></amc-form-field>
+            <amc-form-field label="Contract Title" for="cf-title" [control]="i.title" class="xl:col-span-2"><input id="cf-title" class="amc-input" formControlName="title" /></amc-form-field>
+            <amc-form-field label="Contract Type" for="cf-type" [control]="i.type" [help]="help.type"><amc-select inputId="cf-type" formControlName="type" [options]="typeOptions" /></amc-form-field>
+            <amc-form-field label="Contract Category" for="cf-cat" [control]="i.category"><amc-lookup-select inputId="cf-cat" formControlName="category" [type]="lookup.category" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Contract Status" for="cf-status">
+              <input id="cf-status" class="amc-input" [value]="editing ? (existing.value()?.effectiveStatus ?? '') : 'Draft'" readonly />
+            </amc-form-field>
+            <amc-form-field label="Contract Version" for="cf-version" [help]="help.version"><input id="cf-version" class="amc-input font-mono" [value]="editing ? 'v' + (existing.value()?.version ?? '') + ' → next save creates a new version' : 'v1.0'" readonly /></amc-form-field>
+            <amc-form-field label="Parent Contract" for="cf-parent" [control]="i.parentContractId" hint="Framework / master agreement this contract sits under."><amc-select inputId="cf-parent" formControlName="parentContractId" [options]="parentOptions()" [clearable]="true" placeholder="None" /></amc-form-field>
+            <amc-form-field label="External Reference" for="cf-ext" [control]="i.externalReference"><input id="cf-ext" class="amc-input" formControlName="externalReference" placeholder="Customer PO / tender no." /></amc-form-field>
+            <amc-form-field label="Contract Template" for="cf-template" [control]="i.templateId"><amc-select inputId="cf-template" formControlName="templateId" [options]="templateOptions()" [clearable]="true" placeholder="No template" /></amc-form-field>
+            <amc-form-field label="Risk Level" for="cf-risk" [control]="i.riskLevel" [help]="help.risk"><amc-select inputId="cf-risk" formControlName="riskLevel" [options]="riskOptions" /></amc-form-field>
+            <amc-form-field label="Clauses" for="cf-clauses" [control]="i.clauseIds" class="sm:col-span-2"><amc-multi-select inputId="cf-clauses" formControlName="clauseIds" [options]="clauseOptions()" placeholder="Select clauses…" [maxChips]="4" /></amc-form-field>
+            <div class="flex items-end pb-1"><amc-switch formControlName="signatureRequired" label="Signature Required" [description]="help.signature.lines[0]" /></div>
+          </div>
+        </amc-panel>
+
+        @let p = form.controls.parties.controls;
+        <amc-panel id="section-parties" class="scroll-mt-24" [collapsible]="true" title="B. Parties" description="Contracting parties, contacts and responsible staff" icon="users" formGroupName="parties">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field [label]="customerContract() ? 'Customer / Contracting Party' : 'Customer (optional)'" for="cf-customer" [control]="p.customerId" [help]="help.parties" [required]="customerContract()">
+              <amc-select inputId="cf-customer" formControlName="customerId" [options]="refs.customerOptions()" placeholder="Select customer…" [clearable]="!customerContract()" />
+            </amc-form-field>
+            <amc-form-field label="Customer Legal Entity" for="cf-legal" [control]="p.legalEntity"><input id="cf-legal" class="amc-input" formControlName="legalEntity" /></amc-form-field>
+            <amc-form-field label="Contracting Organization" for="cf-org" [control]="p.contractingOrganizationId"><amc-select inputId="cf-org" formControlName="contractingOrganizationId" [options]="refs.companyOptions()" /></amc-form-field>
+            <amc-form-field label="Branch" for="cf-branch" [control]="p.branchId"><amc-select inputId="cf-branch" formControlName="branchId" [options]="refs.branchOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Vendor / Partner" for="cf-vendor" [control]="p.vendorPartner" [required]="!customerContract()"><input id="cf-vendor" class="amc-input" formControlName="vendorPartner" /></amc-form-field>
+            <amc-form-field label="Primary Contact" for="cf-contact" [control]="p.primaryContact"><input id="cf-contact" class="amc-input" formControlName="primaryContact" /></amc-form-field>
+            <amc-form-field label="Contract Owner" for="cf-owner" [control]="p.ownerId"><amc-select inputId="cf-owner" formControlName="ownerId" [options]="refs.userOptions()" /></amc-form-field>
+            <amc-form-field label="Contract Manager" for="cf-manager" [control]="p.managerId"><amc-select inputId="cf-manager" formControlName="managerId" [options]="refs.usersByRole('Contract Manager')" /></amc-form-field>
+            <amc-form-field label="Account Manager" for="cf-am" [control]="p.accountManagerId"><amc-select inputId="cf-am" formControlName="accountManagerId" [options]="refs.usersByRole('Account Manager')" [clearable]="true" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let pe = form.controls.period.controls;
+        <amc-panel id="section-period" class="scroll-mt-24" [collapsible]="true" title="C. Contract period" description="Effective, start, end and renewal dates" icon="calendar" formGroupName="period">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="flex items-end pb-1 sm:col-span-2 xl:col-span-3"><amc-switch formControlName="timeBound" label="Time-bound contract" [description]="help.period.lines[0]" /></div>
+            <amc-form-field label="Effective Date" for="cf-eff" [control]="pe.effectiveDate"><amc-date-picker inputId="cf-eff" formControlName="effectiveDate" /></amc-form-field>
+            <amc-form-field label="Start Date" for="cf-start" [control]="pe.startDate" [required]="v.period.timeBound"><amc-date-picker inputId="cf-start" formControlName="startDate" /></amc-form-field>
+            <amc-form-field label="End Date" for="cf-end" [control]="pe.endDate" [required]="v.period.timeBound">
+              <amc-date-picker inputId="cf-end" formControlName="endDate" [min]="v.period.startDate" />
+              @if (form.controls.period.hasError('range') && form.controls.period.touched) { <p class="text-xs text-danger" role="alert">End date must be on or after the start date.</p> }
+            </amc-form-field>
+            <amc-form-field label="Renewal Date" for="cf-renewal" [control]="pe.renewalDate"><amc-date-picker inputId="cf-renewal" formControlName="renewalDate" /></amc-form-field>
+            <amc-form-field label="Notice Period (days)" for="cf-notice" [control]="pe.noticePeriodDays" [help]="help.notice"><input id="cf-notice" type="number" min="0" class="amc-input tabular-nums" formControlName="noticePeriodDays" /></amc-form-field>
+            <amc-form-field label="Contract Duration" for="cf-duration"><input id="cf-duration" class="amc-input" [value]="duration() ?? '—'" readonly /></amc-form-field>
+            <div class="flex items-end pb-1"><amc-switch formControlName="autoRenewal" label="Auto Renewal" /></div>
+            <amc-form-field label="Renewal Term (months)" for="cf-term" [control]="pe.renewalTermMonths"><input id="cf-term" type="number" min="1" class="amc-input tabular-nums" formControlName="renewalTermMonths" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let sc = form.controls.scope.controls;
+        <amc-panel id="section-scope" class="scroll-mt-24" [collapsible]="true" title="D. Scope" description="Services, sites, assets, entitlements, SLA and exclusions" icon="layers" formGroupName="scope">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <amc-form-field label="Contract Scope" for="cf-scope" [control]="sc.scope" class="sm:col-span-2"><textarea id="cf-scope" class="amc-textarea min-h-16" formControlName="scope"></textarea></amc-form-field>
+            <amc-form-field label="Services Covered" for="cf-services" [control]="sc.serviceIds" class="sm:col-span-2"><amc-multi-select inputId="cf-services" formControlName="serviceIds" [options]="refs.serviceOptions()" placeholder="Select services…" [maxChips]="4" /></amc-form-field>
+            <amc-form-field label="Sites Covered" for="cf-sites" [control]="sc.siteIds" [hint]="v.parties.customerId ? '' : 'Select a customer first.'"><amc-multi-select inputId="cf-sites" formControlName="siteIds" [options]="siteOptions()" placeholder="Select sites…" [maxChips]="3" /></amc-form-field>
+            <amc-form-field label="Assets Covered" for="cf-assets" [control]="sc.assetIds"><amc-multi-select inputId="cf-assets" formControlName="assetIds" [options]="assetOptions()" placeholder="Select assets…" [maxChips]="3" /></amc-form-field>
+            <amc-form-field label="Service Categories" for="cf-cats" [control]="sc.serviceCategories"><amc-multi-select inputId="cf-cats" formControlName="serviceCategories" [options]="refs.categoryOptions()" placeholder="Select categories…" [maxChips]="3" /></amc-form-field>
+            <amc-form-field label="SLA" for="cf-sla" [control]="sc.slaId"><amc-select inputId="cf-sla" formControlName="slaId" [options]="refs.slaOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Entitlements" for="cf-ent" class="sm:col-span-2" hint="Entitlements are defined in the Service Catalog and linked to this contract once active.">
+              <input id="cf-ent" class="amc-input" [value]="editing ? 'Managed in Service Catalog › Entitlements' : 'Created after activation'" readonly />
+            </amc-form-field>
+            <amc-form-field label="Maintenance Requirements" for="cf-maint" [control]="sc.maintenanceRequirements"><textarea id="cf-maint" class="amc-textarea min-h-16" formControlName="maintenanceRequirements"></textarea></amc-form-field>
+            <amc-form-field label="Exclusions" for="cf-excl" [control]="sc.exclusions"><textarea id="cf-excl" class="amc-textarea min-h-16" formControlName="exclusions"></textarea></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let cm = form.controls.commercial.controls;
+        <amc-panel id="section-commercial" class="scroll-mt-24" [collapsible]="true" title="E. Commercial information" description="Value, billing, payment terms and price escalation" icon="wallet" formGroupName="commercial">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Contract Value" for="cf-value" [control]="cm.value" [help]="help.value">
+              <div class="relative"><span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-subtle">{{ v.commercial.currency }}</span><input id="cf-value" type="number" min="0" class="amc-input pl-12 tabular-nums" formControlName="value" /></div>
+            </amc-form-field>
+            <amc-form-field label="Currency" for="cf-currency" [control]="cm.currency"><amc-select inputId="cf-currency" formControlName="currency" [options]="refs.currencyOptions()" /></amc-form-field>
+            <amc-form-field label="Billing Frequency" for="cf-bfreq" [control]="cm.billingFrequency"><amc-select inputId="cf-bfreq" formControlName="billingFrequency" [options]="billingFrequencyOptions" /></amc-form-field>
+            <amc-form-field label="Payment Terms" for="cf-pt" [control]="cm.paymentTermsId"><amc-select inputId="cf-pt" formControlName="paymentTermsId" [options]="refs.paymentTermOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Billing Method" for="cf-bmethod" [control]="cm.billingMethod"><amc-select inputId="cf-bmethod" formControlName="billingMethod" [options]="billingMethodOptions" /></amc-form-field>
+            <amc-form-field label="Tax Profile" for="cf-tax" [control]="cm.taxProfileId"><amc-select inputId="cf-tax" formControlName="taxProfileId" [options]="refs.taxProfileOptions()" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Discount (%)" for="cf-disc" [control]="cm.discountPercent"><input id="cf-disc" type="number" min="0" max="100" step="0.5" class="amc-input tabular-nums" formControlName="discountPercent" /></amc-form-field>
+            <amc-form-field label="Deposit" for="cf-dep" [control]="cm.deposit"><input id="cf-dep" type="number" min="0" class="amc-input tabular-nums" formControlName="deposit" /></amc-form-field>
+            <amc-form-field label="Advance Payment" for="cf-adv" [control]="cm.advancePayment"><input id="cf-adv" type="number" min="0" class="amc-input tabular-nums" formControlName="advancePayment" /></amc-form-field>
+            <amc-form-field label="Price Escalation (%)" for="cf-esc" [control]="cm.priceEscalationPercent"><input id="cf-esc" type="number" min="0" max="100" step="0.5" class="amc-input tabular-nums" formControlName="priceEscalationPercent" /></amc-form-field>
+            <amc-form-field label="Price Revision Date" for="cf-rev" [control]="cm.priceRevisionDate"><amc-date-picker inputId="cf-rev" formControlName="priceRevisionDate" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let fi = form.controls.financial.controls;
+        <amc-panel id="section-financial" class="scroll-mt-24" [collapsible]="true" title="F. Financial information" description="Revenue, cost, margin and accounting" icon="trending-up" formGroupName="financial">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Estimated Revenue" for="cf-rev2" [control]="fi.estimatedRevenue"><input id="cf-rev2" type="number" min="0" class="amc-input tabular-nums" formControlName="estimatedRevenue" /></amc-form-field>
+            <amc-form-field label="Estimated Cost" for="cf-cost" [control]="fi.estimatedCost"><input id="cf-cost" type="number" min="0" class="amc-input tabular-nums" formControlName="estimatedCost" /></amc-form-field>
+            <amc-form-field label="Expected Margin" for="cf-margin">
+              <input id="cf-margin" class="amc-input tabular-nums" [class]="margin() && margin()!.percent < 20 ? 'text-danger' : ''" [value]="margin() ? formatCurrency(margin()!.amount, v.commercial.currency) + ' (' + margin()!.percent + '%)' : '—'" readonly />
+            </amc-form-field>
+            <amc-form-field label="Billing Account" for="cf-ba" [control]="fi.billingAccount"><input id="cf-ba" class="amc-input" formControlName="billingAccount" /></amc-form-field>
+            <amc-form-field label="Revenue Account" for="cf-ra" [control]="fi.revenueAccount"><input id="cf-ra" class="amc-input" formControlName="revenueAccount" /></amc-form-field>
+            <amc-form-field label="Cost Center" for="cf-cc" [control]="fi.costCenter"><amc-lookup-select inputId="cf-cc" formControlName="costCenter" [type]="lookup.costCenter" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Profit Center" for="cf-pc" [control]="fi.profitCenter"><amc-lookup-select inputId="cf-pc" formControlName="profitCenter" [type]="lookup.profitCenter" [clearable]="true" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let se = form.controls.service.controls;
+        <amc-panel id="section-service" class="scroll-mt-24" [collapsible]="true" title="G. Service information" description="Frequency, visits and coverage" icon="wrench" formGroupName="service">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Service Catalog" for="cf-catalog"><input id="cf-catalog" class="amc-input" [value]="v.scope.serviceIds.length + ' catalog services selected in Scope'" readonly /></amc-form-field>
+            <amc-form-field label="Service Frequency" for="cf-sfreq" [control]="se.serviceFrequency"><amc-select inputId="cf-sfreq" formControlName="serviceFrequency" [options]="frequencyOptions" /></amc-form-field>
+            <amc-form-field label="Included Visits" for="cf-visits" [control]="se.includedVisits"><input id="cf-visits" type="number" min="0" class="amc-input tabular-nums" formControlName="includedVisits" /></amc-form-field>
+            <amc-switch formControlName="laborCoverage" label="Labor Coverage" />
+            <amc-switch formControlName="partsCoverage" label="Parts Coverage" />
+            <amc-switch formControlName="travelCoverage" label="Travel Coverage" />
+            <amc-switch formControlName="emergencyCoverage" label="Emergency Coverage" />
+            <amc-form-field label="Service Window" for="cf-window" [control]="se.serviceWindow" class="xl:col-span-2"><amc-select inputId="cf-window" formControlName="serviceWindow" [options]="windowOptions" /></amc-form-field>
+          </div>
+        </amc-panel>
+
+        @let lg = form.controls.legal.controls;
+        <amc-panel id="section-legal" class="scroll-mt-24" [collapsible]="true" title="H. Legal & compliance" description="Law, jurisdiction, liability, penalties and termination" icon="shield-check" formGroupName="legal">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <amc-form-field label="Governing Law" for="cf-law" [control]="lg.governingLaw"><amc-lookup-select inputId="cf-law" formControlName="governingLaw" [type]="lookup.governingLaw" /></amc-form-field>
+            <amc-form-field label="Jurisdiction" for="cf-jur" [control]="lg.jurisdiction"><amc-lookup-select inputId="cf-jur" formControlName="jurisdiction" [type]="lookup.jurisdiction" [clearable]="true" /></amc-form-field>
+            <amc-form-field label="Dispute Resolution Method" for="cf-dispute" [control]="lg.disputeResolution"><amc-select inputId="cf-dispute" formControlName="disputeResolution" [options]="disputeOptions" /></amc-form-field>
+            <amc-form-field label="Liability Limit" for="cf-liab" [control]="lg.liabilityLimit" hint="Leave empty for unlimited (requires Legal approval)."><input id="cf-liab" type="number" min="0" class="amc-input tabular-nums" formControlName="liabilityLimit" /></amc-form-field>
+            <amc-form-field label="Insurance Requirement" for="cf-ins" [control]="lg.insuranceRequirement"><input id="cf-ins" class="amc-input" formControlName="insuranceRequirement" /></amc-form-field>
+            <div class="flex items-end pb-1"><amc-switch formControlName="confidentiality" label="Confidentiality Required" /></div>
+            <amc-form-field label="Compliance Requirements" for="cf-comp" [control]="lg.complianceRequirements"><textarea id="cf-comp" class="amc-textarea min-h-16" formControlName="complianceRequirements"></textarea></amc-form-field>
+            <amc-form-field label="Penalty Terms" for="cf-pen" [control]="lg.penaltyTerms"><textarea id="cf-pen" class="amc-textarea min-h-16" formControlName="penaltyTerms"></textarea></amc-form-field>
+            <amc-form-field label="Termination Conditions" for="cf-term2" [control]="lg.terminationConditions"><textarea id="cf-term2" class="amc-textarea min-h-16" formControlName="terminationConditions"></textarea></amc-form-field>
+          </div>
+        </amc-panel>
+
+        <amc-panel id="section-documents" class="scroll-mt-24" [collapsible]="true" title="I. Documents" description="Contract document, proposal, quotation, PO and legal documents — version-controlled" icon="paperclip">
+          <div class="flex flex-wrap items-end gap-3">
+            <amc-form-field label="Document Type" for="cf-doctype" class="min-w-56"><amc-select inputId="cf-doctype" [options]="documentTypeOptions" [(value)]="docType" /></amc-form-field>
+            <label for="cf-files" class="amc-btn-secondary cursor-pointer" [class]="readOnly() ? 'pointer-events-none opacity-50' : ''"><amc-icon name="upload" /> Attach files<input id="cf-files" type="file" multiple class="sr-only" (change)="onFiles($event)" /></label>
+          </div>
+          <ul class="mt-4 divide-y divide-line rounded-xl border border-line">
+            @for (d of existingDocs.hasValue() ? existingDocs.value() : []; track d.id) {
+              <li class="flex items-center gap-3 px-3 py-2 text-sm" [class]="d.supersededById ? 'opacity-60' : ''">
+                <amc-icon [name]="d.locked ? 'lock' : 'paperclip'" class="text-ink-subtle" />
+                <span class="min-w-0 flex-1 truncate">{{ d.name }}</span>
+                <span class="text-xs text-ink-muted">{{ d.type }} · v{{ d.version }}{{ d.supersededById ? ' · superseded' : '' }}</span>
+              </li>
+            }
+            @for (d of pendingDocs(); track d.id) {
+              <li class="flex items-center gap-3 px-3 py-2 text-sm">
+                <amc-icon name="upload" class="text-brand" />
+                <span class="min-w-0 flex-1 truncate">{{ d.name }}</span>
+                <span class="text-xs text-ink-muted">{{ d.type }} · {{ formatFileSize(d.size) }} · uploads on save</span>
+                <button type="button" class="amc-btn-icon h-7 w-7" [attr.aria-label]="'Remove ' + d.name" (click)="removeDoc(d.id)"><amc-icon name="x" [size]="14" /></button>
+              </li>
+            }
+            @if (!pendingDocs().length && !(existingDocs.hasValue() && existingDocs.value().length)) { <li class="px-3 py-4 text-center text-sm text-ink-muted">No documents attached.</li> }
+          </ul>
+        </amc-panel>
+
+        @let n = form.controls.notes.controls;
+        <amc-panel id="section-notes" class="scroll-mt-24" [collapsible]="true" title="J. Notes" icon="sticky-note" formGroupName="notes">
+          <div class="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <amc-form-field label="Internal Notes" for="cf-n1" [control]="n.internal"><textarea id="cf-n1" class="amc-textarea min-h-16" formControlName="internal"></textarea></amc-form-field>
+            <amc-form-field label="Customer Notes" for="cf-n2" [control]="n.customer"><textarea id="cf-n2" class="amc-textarea min-h-16" formControlName="customer"></textarea></amc-form-field>
+            <amc-form-field label="Legal Notes" for="cf-n3" [control]="n.legal"><textarea id="cf-n3" class="amc-textarea min-h-16" formControlName="legal"></textarea></amc-form-field>
+            <amc-form-field label="Contract Manager Notes" for="cf-n4" [control]="n.manager"><textarea id="cf-n4" class="amc-textarea min-h-16" formControlName="manager"></textarea></amc-form-field>
+          </div>
+        </amc-panel>
+      </div>
+
+      <div class="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:col-span-2 lg:-mx-8 lg:px-8">
+        <div class="flex flex-wrap items-center gap-2">
+          @if (editing && !readOnly()) {
+            <input class="amc-input mr-auto h-9 w-full max-w-sm" placeholder="Change summary for the new version (e.g. Commercial changes)" [formControl]="form.controls.changeSummary" aria-label="Change summary" />
+          } @else {
+            <p class="mr-auto hidden text-xs text-ink-muted md:block">@if (form.dirty) { Unsaved changes } @else { Fields marked <span class="text-danger">*</span> are required. }</p>
+          }
+          <a [routerLink]="editing ? ['/app/contracts', contractId()] : '/app/contracts/list'" class="amc-btn-ghost">Cancel</a>
+          @if (!readOnly()) {
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" [disabled]="saving()" (click)="save('approval')">Submit for Approval</button>
+            <button type="button" class="amc-btn-secondary" [disabled]="saving()" (click)="save('review')"><amc-icon name="send" /> Save &amp; Submit for Review</button>
+            <button type="submit" class="amc-btn-primary min-w-24" [disabled]="saving()">@if (saving()) { <amc-spinner [size]="14" /> } @else { <amc-icon name="save" /> } Save Draft</button>
+          }
+        </div>
+      </div>
+    </form>
+  }
+</div>

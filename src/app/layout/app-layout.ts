@@ -1,9 +1,9 @@
-import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AppearanceStore } from '@core/appearance/appearance.store';
+import { lockPageScroll } from '@shared/utils/scroll-lock';
 import { AppearancePanel } from './appearance-panel';
 import { BottomNav } from './bottom-nav';
 import { Header } from './header';
@@ -50,7 +50,6 @@ export class AppLayout {
   protected readonly appearanceOpen = signal(false);
 
   constructor() {
-    const document = inject(DOCUMENT);
     inject(Router)
       .events.pipe(
         filter((event) => event instanceof NavigationEnd),
@@ -58,8 +57,8 @@ export class AppLayout {
       )
       .subscribe(() => this.mobileNavOpen.set(false));
 
-    effect(() => {
-      document.body.style.overflow = this.mobileNavOpen() ? 'hidden' : '';
+    effect((onCleanup) => {
+      if (this.mobileNavOpen()) onCleanup(lockPageScroll());
     });
   }
 

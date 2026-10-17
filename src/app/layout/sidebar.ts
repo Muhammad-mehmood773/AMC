@@ -1,11 +1,11 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AppearanceStore } from '@core/appearance/appearance.store';
 import { Icon } from '@shared/ui/icon';
-import { APP_NAVIGATION, isNavItemActive, type NavItem } from './navigation';
+import { APP_NAVIGATION, isNavItemActive, type NavItem, type NavSection } from './navigation';
 
 @Component({
   selector: 'amc-sidebar',
@@ -37,35 +37,56 @@ import { APP_NAVIGATION, isNavItemActive, type NavItem } from './navigation';
         </a>
       </div>
 
-      <nav class="flex-1 overflow-y-auto px-3 py-2" aria-label="Main navigation">
-        @for (section of navigation; track section.label) {
-          @if (collapsed) {
-            <div class="mx-auto my-2 h-px w-6 bg-line"></div>
-          } @else {
-            <p class="amc-overline px-3 pt-3 pb-2">{{ section.label }}</p>
-          }
-          <ul class="space-y-0.5">
-            @for (item of section.items; track item.path) {
-              <li>
-                <a
-                  [routerLink]="item.path"
-                  class="group flex h-9 items-center gap-3 rounded-lg text-sm font-medium transition-colors"
-                  [class]="itemClass(item, collapsed)"
-                  [attr.aria-current]="isActive(item) ? 'page' : null"
-                  [attr.title]="collapsed ? item.label : null"
-                >
-                  <amc-icon
-                    [name]="item.icon"
-                    [size]="18"
-                    [class]="isActive(item) ? 'text-brand' : 'text-ink-subtle group-hover:text-ink'"
-                  />
-                  @if (!collapsed) {
-                    <span class="truncate">{{ item.label }}</span>
-                  }
-                </a>
-              </li>
-            }
-          </ul>
+      <nav class="amc-scroll-hover flex-1 overflow-y-auto px-3 py-2" aria-label="Main navigation">
+        @for (section of navigation; track section.label; let i = $index) {
+          @let open = isOpen(section.label);
+          @let current = sectionActive(section);
+          <div class="py-0.5">
+            <button
+              type="button"
+              class="group flex w-full items-center rounded-lg text-left transition-colors"
+              [class]="sectionClass(collapsed, open, current)"
+              [attr.aria-expanded]="open"
+              [attr.aria-controls]="'nav-section-' + i"
+              [attr.title]="collapsed ? section.label : null"
+              (click)="toggle(section.label)"
+            >
+              <span
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors"
+                [class]="current ? 'bg-brand text-brand-foreground shadow-sm' : 'bg-surface-sunken text-ink-subtle group-hover:text-ink'"
+              >
+                <amc-icon [name]="section.icon" [size]="15" />
+              </span>
+              @if (!collapsed) {
+                <span class="ml-2.5 flex-1 truncate text-[12px] font-semibold tracking-wide uppercase" [class]="current ? 'text-ink' : 'text-ink-muted group-hover:text-ink'">{{ section.label }}</span>
+                <amc-icon name="chevron-down" [size]="15" class="shrink-0 text-ink-subtle transition-transform duration-200" [class]="open ? 'rotate-180' : ''" />
+              }
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-200 ease-out" [class]="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'" [id]="'nav-section-' + i">
+              <ul class="min-h-0 overflow-hidden" [class]="collapsed ? 'space-y-0.5' : 'ml-[22px] space-y-0.5 border-l border-line pl-2'" [attr.inert]="open ? null : ''">
+                @for (item of section.items; track item.path) {
+                  <li [class]="collapsed ? '' : 'first:mt-1 last:mb-1'">
+                    <a
+                      [routerLink]="item.path"
+                      class="group relative flex h-9 items-center gap-3 rounded-lg text-sm font-medium transition-colors"
+                      [class]="itemClass(item, collapsed)"
+                      [attr.aria-current]="isActive(item) ? 'page' : null"
+                      [attr.title]="collapsed ? item.label : null"
+                    >
+                      <amc-icon
+                        [name]="item.icon"
+                        [size]="17"
+                        [class]="isActive(item) ? 'text-brand' : 'text-ink-subtle group-hover:text-ink'"
+                      />
+                      @if (!collapsed) {
+                        <span class="truncate">{{ item.label }}</span>
+                      }
+                    </a>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
         }
       </nav>
 
@@ -158,12 +179,34 @@ export class Sidebar {
     { initialValue: this.router.url },
   );
 
+  /** Section owning the current route; it is always opened on navigation (accordion). */
+  private readonly activeSection = computed(() => this.navigation.find((s) => s.items.some((i) => isNavItemActive(i, this.url())))?.label ?? null);
+  private readonly openSection = linkedSignal<string | null>(() => this.activeSection() ?? this.navigation[0]?.label ?? null);
+
+  protected isOpen(label: string): boolean {
+    return this.openSection() === label;
+  }
+
+  protected toggle(label: string): void {
+    this.openSection.update((current) => (current === label ? null : label));
+  }
+
+  protected sectionActive(section: NavSection): boolean {
+    return this.activeSection() === section.label;
+  }
+
+  protected sectionClass(collapsed: boolean, open: boolean, current: boolean): string {
+    const layout = collapsed ? 'justify-center h-10' : 'h-10 px-1.5';
+    const tone = open || current ? 'bg-surface-sunken/60' : 'hover:bg-surface-sunken';
+    return `${layout} ${tone}`;
+  }
+
   protected isActive(item: NavItem): boolean {
     return isNavItemActive(item, this.url());
   }
 
   protected itemClass(item: NavItem, collapsed: boolean): string {
-    const layout = collapsed ? 'justify-center' : 'px-3';
+    const layout = collapsed ? 'justify-center' : 'px-2.5';
     const tone = this.isActive(item)
       ? 'bg-brand-subtle text-ink'
       : 'text-ink-muted hover:bg-surface-sunken hover:text-ink';

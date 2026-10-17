@@ -6,6 +6,9 @@ import {
   type FontPreference,
   type FontSizePreference,
   type RadiusPreference,
+  type ScrollbarColor,
+  type ScrollbarSize,
+  type ScrollbarStyle,
   type SidebarStyle,
   THEME_PRESETS,
   type ThemePreference,
@@ -60,6 +63,25 @@ const SIDEBAR_STYLES: readonly (Choice<SidebarStyle> & { readonly swatch: string
   { value: 'light', label: 'Light', swatch: 'bg-white' },
   { value: 'tinted', label: 'Tinted', swatch: 'bg-[color-mix(in_oklab,var(--amc-primary)_14%,white)]' },
   { value: 'dark', label: 'Dark', swatch: 'bg-slate-900' },
+];
+
+const SCROLLBAR_STYLES: readonly (Choice<ScrollbarStyle> & { readonly thumb: string })[] = [
+  { value: 'themed', label: 'Themed', description: 'Theme color with soft track', thumb: 'bg-brand/60' },
+  { value: 'minimal', label: 'Minimal', description: 'Appears on hover', thumb: 'bg-brand/25' },
+  { value: 'neutral', label: 'Neutral', description: 'Subtle gray', thumb: 'bg-ink-subtle/50' },
+  { value: 'system', label: 'System', description: 'Browser default', thumb: 'bg-ink-muted' },
+];
+
+const SCROLLBAR_COLORS: readonly (Choice<ScrollbarColor> & { readonly swatch: string })[] = [
+  { value: 'primary', label: 'Primary', swatch: 'bg-brand' },
+  { value: 'secondary', label: 'Secondary', swatch: 'bg-info' },
+  { value: 'accent', label: 'Accent', swatch: 'bg-accent' },
+  { value: 'gradient', label: 'Gradient', swatch: 'bg-linear-to-b from-brand to-accent' },
+];
+
+const SCROLLBAR_SIZES: readonly Choice<ScrollbarSize>[] = [
+  { value: 'thin', label: 'Thin' },
+  { value: 'regular', label: 'Regular' },
 ];
 
 const SWATCHES = ['#0f766e', '#047857', '#0369a1', '#1d4ed8', '#4f46e5', '#7c3aed', '#9333ea', '#db2777', '#be123c', '#c2410c', '#b45309', '#334155'];
@@ -287,6 +309,54 @@ const COLOR_ROLES: readonly { key: ColorKey; label: string; description: string 
               </div>
             </section>
 
+            <section aria-labelledby="pref-scrollbar">
+              <h3 id="pref-scrollbar" class="text-sm font-semibold text-ink">Scrollbars</h3>
+              <p class="mt-0.5 text-xs text-ink-muted">Style and color of scrollbars across the application.</p>
+              <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-labelledby="pref-scrollbar">
+                @for (option of scrollbarStyles; track option.value) {
+                  <button type="button" role="radio" class="rounded-xl border p-2.5 text-left transition-colors" [class]="optionClass(s().scrollbarStyle === option.value)" [attr.aria-checked]="s().scrollbarStyle === option.value" (click)="set({ scrollbarStyle: option.value })">
+                    <span class="flex h-10 gap-1.5 rounded-lg border border-line bg-surface-muted p-1.5" aria-hidden="true">
+                      <span class="flex flex-1 flex-col gap-1"><span class="h-1 w-full rounded-full bg-line-strong"></span><span class="h-1 w-3/4 rounded-full bg-line-strong"></span><span class="h-1 w-5/6 rounded-full bg-line-strong"></span></span>
+                      <span class="relative w-1.5 rounded-full" [class]="option.value === 'themed' ? 'bg-brand/10' : option.value === 'system' ? 'bg-line' : ''">
+                        <span class="absolute inset-x-0 top-0.5 h-3.5 rounded-full" [class]="option.thumb"></span>
+                      </span>
+                    </span>
+                    <span class="mt-2 block text-sm font-medium text-ink">{{ option.label }}</span>
+                    <span class="block text-[11px] leading-tight text-ink-muted">{{ option.description }}</span>
+                  </button>
+                }
+              </div>
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Scrollbar color">
+                  @for (option of scrollbarColors; track option.value) {
+                    <button
+                      type="button"
+                      role="radio"
+                      class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                      [class]="s().scrollbarColor === option.value ? 'border-brand bg-brand-subtle text-ink' : 'border-line text-ink-muted hover:border-line-strong hover:text-ink'"
+                      [disabled]="s().scrollbarStyle === 'neutral' || s().scrollbarStyle === 'system'"
+                      [attr.aria-checked]="s().scrollbarColor === option.value"
+                      (click)="set({ scrollbarColor: option.value })"
+                    >
+                      <span class="h-3 w-3 rounded-full" [class]="option.swatch" aria-hidden="true"></span>
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
+                <div class="grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1" role="radiogroup" aria-label="Scrollbar size">
+                  @for (size of scrollbarSizes; track size.value) {
+                    <button type="button" role="radio" class="rounded-lg px-3 py-1 text-xs font-medium transition-colors" [class]="s().scrollbarSize === size.value ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink'" [disabled]="s().scrollbarStyle === 'system'" [attr.aria-checked]="s().scrollbarSize === size.value" (click)="set({ scrollbarSize: size.value })">{{ size.label }}</button>
+                  }
+                </div>
+              </div>
+              <div class="mt-3 h-24 overflow-y-auto rounded-xl border border-line bg-surface p-3" tabindex="0" aria-label="Scrollbar preview">
+                <p class="text-xs font-medium text-ink">Live preview</p>
+                @for (line of previewLines; track line) {
+                  <p class="mt-1.5 text-xs text-ink-muted">Scroll here to preview the selected scrollbar — line {{ line }}.</p>
+                }
+              </div>
+            </section>
+
             <section class="hidden lg:block">
               <amc-switch label="Collapsed sidebar" description="Show navigation as an icon rail on desktop." [checked]="s().sidebarCollapsed" (checkedChange)="set({ sidebarCollapsed: $event })" />
             </section>
@@ -323,6 +393,10 @@ export class AppearancePanel {
   protected readonly densities = DENSITIES;
   protected readonly radii = RADII;
   protected readonly sidebarStyles = SIDEBAR_STYLES;
+  protected readonly scrollbarStyles = SCROLLBAR_STYLES;
+  protected readonly scrollbarColors = SCROLLBAR_COLORS;
+  protected readonly scrollbarSizes = SCROLLBAR_SIZES;
+  protected readonly previewLines = [1, 2, 3, 4, 5, 6, 7, 8];
   protected readonly swatches = SWATCHES;
   protected readonly colorRoles = COLOR_ROLES;
 

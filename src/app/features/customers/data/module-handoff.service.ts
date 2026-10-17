@@ -38,6 +38,10 @@ export class ModuleHandoff {
       void this.router.navigate(['/app/assets/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
       return;
     }
+    if (action === 'Create Contract') {
+      void this.router.navigate(['/app/contracts/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
+      return;
+    }
     const scope = context.siteName ? `${context.customerName} · ${context.siteName}` : context.customerName;
     this.notifications.info(
       `${action} for ${scope} continues in the ${TARGET_MODULE[action]} module.`,

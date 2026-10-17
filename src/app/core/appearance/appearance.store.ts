@@ -6,6 +6,9 @@ export type FontSizePreference = 'compact' | 'small' | 'default' | 'large';
 export type DensityPreference = 'comfortable' | 'compact';
 export type RadiusPreference = 'none' | 'small' | 'medium' | 'large' | 'full';
 export type SidebarStyle = 'light' | 'tinted' | 'dark';
+export type ScrollbarStyle = 'themed' | 'minimal' | 'neutral' | 'system';
+export type ScrollbarColor = 'primary' | 'secondary' | 'accent' | 'gradient';
+export type ScrollbarSize = 'thin' | 'regular';
 
 export interface AppearanceState {
   readonly theme: ThemePreference;
@@ -18,6 +21,9 @@ export interface AppearanceState {
   readonly radius: RadiusPreference;
   readonly sidebarCollapsed: boolean;
   readonly sidebarStyle: SidebarStyle;
+  readonly scrollbarStyle: ScrollbarStyle;
+  readonly scrollbarColor: ScrollbarColor;
+  readonly scrollbarSize: ScrollbarSize;
   readonly highContrast: boolean;
   readonly reduceMotion: boolean;
 }
@@ -51,6 +57,9 @@ export const DEFAULT_APPEARANCE: AppearanceState = {
   radius: 'medium',
   sidebarCollapsed: false,
   sidebarStyle: 'light',
+  scrollbarStyle: 'themed',
+  scrollbarColor: 'primary',
+  scrollbarSize: 'thin',
   highContrast: false,
   reduceMotion: false,
 };
@@ -153,6 +162,9 @@ export class AppearanceStore {
     root.dataset['sidebar'] = s.sidebarCollapsed ? 'collapsed' : 'expanded';
     root.dataset['contrast'] = s.highContrast ? 'high' : 'standard';
     root.dataset['motion'] = s.reduceMotion ? 'reduced' : 'full';
+    root.dataset['scrollbar'] = s.scrollbarStyle;
+    root.dataset['scrollbarColor'] = s.scrollbarColor;
+    root.dataset['scrollbarSize'] = s.scrollbarSize;
     root.style.fontSize = `${FONT_SIZE_PX[s.fontSize]}px`;
     root.style.setProperty('--amc-primary', s.primary);
     root.style.setProperty('--amc-primary-fg', contrastText(s.primary));

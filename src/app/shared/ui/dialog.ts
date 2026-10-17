@@ -1,14 +1,17 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   afterNextRender,
   computed,
   effect,
+  inject,
   input,
   model,
   viewChild,
 } from '@angular/core';
+import { lockPageScroll } from '../utils/scroll-lock';
 import { Icon } from './icon';
 
 const SIZES = {
@@ -92,6 +95,8 @@ export class Dialog {
       : `mx-auto mt-auto mb-0 max-h-[92dvh] w-full max-w-full rounded-t-2xl shadow-[var(--shadow-modal)] open:animate-slide-up sm:my-auto sm:max-h-[calc(100dvh-4rem)] sm:w-[calc(100%-2rem)] sm:rounded-2xl ${SIZES[this.size()]}`,
   );
 
+  private releaseScroll: (() => void) | null = null;
+
   constructor() {
     // Backdrop clicks land on the <dialog> element itself; content clicks land on children.
     afterNextRender(() =>
@@ -101,10 +106,18 @@ export class Dialog {
       const element = this.dialog().nativeElement;
       if (this.open() && !element.open) {
         element.showModal();
+        this.releaseScroll ??= lockPageScroll();
       } else if (!this.open() && element.open) {
         element.close();
       }
+      if (!this.open()) this.unlock();
     });
+    inject(DestroyRef).onDestroy(() => this.unlock());
+  }
+
+  private unlock(): void {
+    this.releaseScroll?.();
+    this.releaseScroll = null;
   }
 
   private onBackdrop(event: MouseEvent): void {

@@ -31,5 +31,17 @@
   profile, category-specific technical fields) live in `data/asset.config.ts`. Service actions
   (SR / WO / maintenance) go through `AssetHandoff`, which shows the entitlement check first.
   Asset labels use the offline `<amc-qr-code>` / `<amc-barcode>` (`shared/ui/codes.ts`).
+- Service Catalog & Entitlements (`features/catalog`, SRS 4): seed derived from `buildSeed()`
+  (entitlements built from the customer agreements, IDs SVC-<code>, ENT-00001…). Rules live in
+  `data/catalog.config.ts` (expiring window, near-limit %, coverage-type service types / labor-parts
+  defaults). Price resolution (most specific effective rule wins), SRS 4.12 entitlement validation
+  and automatic usage updates are in `mock/mock-catalog-apis.ts`.
+- Contract Lifecycle Management (`features/contracts`, SRS 5): contracts are seeded from the customer
+  agreements (same CON-/AMC- numbers, sequence starts at 00100) plus vendor contracts (VEN-…);
+  catalog services/entitlements come from `buildCatalogSeed()`. Approval levels, alert intervals,
+  allowed status actions and FX for portfolio totals live in `data/contract.config.ts`. Workflow
+  rules (review → approval → e-signature → activation, versioning, amendments, renewals,
+  terminations, obligations) are enforced in `mock/mock-contract-apis.ts`. Customer "Create
+  Contract" hand-off opens `/app/contracts/new?customerId=…`.
 - Contextual help: pass `[help]` to `<amc-form-field>`; content lives in the feature's
   `data/field-help.ts`. Only add help where it explains a purpose or business rule.

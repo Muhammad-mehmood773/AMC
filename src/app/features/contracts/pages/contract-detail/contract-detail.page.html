@@ -1,0 +1,306 @@
+@if (res.error()) {
+  <div class="amc-card">
+    <amc-error-state title="Contract not found" message="This contract could not be loaded." (retry)="res.reload()" />
+    <div class="-mt-6 pb-8 text-center"><a routerLink="/app/contracts/list" class="amc-link text-sm">Back to contracts</a></div>
+  </div>
+} @else if (!c()) {
+  <div class="amc-card space-y-3 p-5"><amc-skeleton class="h-6 w-72" /><amc-skeleton class="h-4 w-48" /></div>
+} @else {
+  @let ct = c()!;
+  <div class="space-y-5">
+    <amc-breadcrumbs [items]="[{ label: 'Contracts', path: '/app/contracts/dashboard' }, { label: 'List', path: '/app/contracts/list' }, { label: ct.number }]" />
+
+    <header class="amc-card space-y-4 p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-brand"><amc-icon name="file-text" [size]="24" /></span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ ct.title }}</h1>
+              <amc-status-badge [label]="ct.effectiveStatus" [tone]="statusTone[ct.effectiveStatus]" />
+            </div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+              <span class="font-mono text-[13px]">{{ ct.number }}</span><span class="text-ink-subtle">·</span>
+              <span class="font-mono text-[13px]">v{{ ct.version }}</span><span class="text-ink-subtle">·</span>
+              <span>{{ ct.type }}</span>
+              @if (ct.previousContractId) { <span class="text-ink-subtle">·</span><a [routerLink]="['/app/contracts', ct.previousContractId]" class="hover:text-brand">Renewal of {{ ct.previousContractId }}</a> }
+              @if (ct.renewedById) { <span class="text-ink-subtle">·</span><a [routerLink]="['/app/contracts', ct.renewedById]" class="hover:text-brand">Renewed as {{ ct.renewedById }}</a> }
+            </p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Customer</dt><dd>
+                @if (ct.parties.customerId) { <a [routerLink]="['/app/customers', ct.parties.customerId]" class="font-medium text-ink hover:text-brand">{{ ct.customerName }}</a> } @else { <span class="font-medium text-ink">{{ ct.parties.vendorPartner }}</span> }
+              </dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Period</dt><dd class="font-medium text-ink">{{ formatDate(ct.period.startDate) }} – {{ formatDate(ct.period.endDate) }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Value</dt><dd class="font-medium text-ink">{{ formatCurrency(ct.commercial.value, ct.commercial.currency) }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Owner</dt><dd class="font-medium text-ink">{{ ct.ownerName }}</dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          @if (ct.effectiveStatus === 'Pending Approval') { <a routerLink="/app/contracts/approvals" [queryParams]="{ contractId: ct.id }" class="amc-btn-secondary"><amc-icon name="check-circle" /> View Approval</a> }
+          @if (ct.signatureRequired && (ct.effectiveStatus === 'Approved' || ct.effectiveStatus === 'Pending Signature' || ct.effectiveStatus === 'Partially Signed')) {
+            <a routerLink="/app/contracts/execution" [queryParams]="{ contractId: ct.id }" class="amc-btn-secondary"><amc-icon name="pen-tool" /> {{ ct.effectiveStatus === 'Approved' ? 'Send for Signature' : 'Track Signature' }}</a>
+          }
+          @if (ct.effectiveStatus === 'Active' || ct.effectiveStatus === 'Expiring Soon') {
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" (click)="onAction('amend')"><amc-icon name="layers" /> Amend</button>
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" (click)="onAction('renew')"><amc-icon name="refresh" /> Renew</button>
+          }
+          <a [routerLink]="['/app/contracts', ct.id, 'edit']" class="amc-btn-primary"><amc-icon [name]="['Draft', 'Under Review', 'Under Negotiation'].includes(ct.status) ? 'pencil' : 'eye'" /> {{ ['Draft', 'Under Review', 'Under Negotiation'].includes(ct.status) ? 'Edit' : 'View Terms' }}</a>
+          <amc-action-menu label="Actions" [items]="menu()" (action)="onAction($event)" />
+        </div>
+      </div>
+      <amc-lifecycle-stepper [status]="ct.effectiveStatus" />
+    </header>
+
+    @if (alerts().length) {
+      <div class="space-y-2">
+        @for (a of alerts().slice(0, 3); track a.id) {
+          <div class="flex items-center gap-3 rounded-xl border p-3" [class]="a.severity === 'danger' ? 'border-danger/30 bg-danger-subtle' : a.severity === 'warn' ? 'border-warn/30 bg-warn-subtle' : 'border-info/30 bg-info-subtle'" role="status">
+            <amc-icon [name]="a.severity === 'info' ? 'bell' : 'alert-triangle'" [size]="16" [class]="a.severity === 'danger' ? 'text-danger' : a.severity === 'warn' ? 'text-warn' : 'text-info'" />
+            <p class="text-sm text-ink"><span class="font-semibold">{{ a.type }}:</span> {{ a.message }}</p>
+          </div>
+        }
+      </div>
+    }
+
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-7" aria-label="Contract KPIs">
+      <amc-kpi-card label="Contract Value" icon="wallet" tone="brand" [value]="formatCurrency(ct.commercial.value, ct.commercial.currency, true)" />
+      <amc-kpi-card label="Remaining Value" icon="wallet" [value]="formatCurrency(ct.remainingValue, ct.commercial.currency, true)" [hint]="financials()!.billedPct + '% billed'" />
+      <amc-kpi-card label="Revenue" icon="trending-up" tone="ok" [value]="formatCurrency(ct.tracking.recognizedRevenue, ct.commercial.currency, true)" hint="Recognized" />
+      <amc-kpi-card label="Cost" icon="receipt" tone="warn" [value]="formatCurrency(ct.tracking.actualCost, ct.commercial.currency, true)" hint="Actual" />
+      <amc-kpi-card label="Margin" icon="pie-chart" [tone]="ct.marginPercent < 20 ? 'danger' : 'ok'" [value]="ct.marginPercent + '%'" [hint]="formatCurrency(ct.margin, ct.commercial.currency, true) + ' expected'" />
+      <amc-kpi-card label="Active Sites" icon="map-pin" tone="info" [value]="ct.scopeInfo.siteIds.length" />
+      <amc-kpi-card label="Covered Assets" icon="box" tone="info" [value]="ct.scopeInfo.assetIds.length" />
+      <amc-kpi-card label="Covered Services" icon="list" tone="accent" [value]="ct.scopeInfo.serviceIds.length" />
+      <amc-kpi-card label="Open Obligations" icon="clipboard-list" [tone]="ct.overdueObligations ? 'danger' : 'warn'" [value]="ct.openObligations" [hint]="ct.overdueObligations ? ct.overdueObligations + ' overdue' : ''" />
+      <amc-kpi-card label="Completed Obligations" icon="check-circle" tone="ok" [value]="ct.completedObligations" />
+      <amc-kpi-card label="Days Remaining" icon="calendar" [tone]="ct.daysRemaining < 0 ? 'danger' : ct.daysRemaining <= 60 ? 'warn' : 'neutral'" [value]="ct.daysRemaining < 0 ? 'Ended' : ct.daysRemaining" />
+      <amc-kpi-card label="Renewal Status" icon="refresh" [value]="ct.renewalStatus" />
+      <amc-kpi-card label="SLA Breaches" icon="alert-triangle" [tone]="ct.slaBreaches ? 'danger' : 'neutral'" [value]="ct.slaBreaches" />
+    </section>
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" [maxVisible]="10" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <amc-panel class="xl:col-span-2" title="Contract summary" icon="file-text">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <amc-detail-item label="Contract Type" [value]="ct.type" />
+              <amc-detail-item label="Category" [value]="ct.category" />
+              <amc-detail-item label="Risk Level" [value]="ct.riskLevel" />
+              <div><dt class="text-xs font-medium text-ink-muted">Approval Status</dt><dd class="mt-1"><amc-status-badge [label]="ct.approvalStatus" [tone]="approvalTone[ct.approvalStatus]" /></dd></div>
+              <div><dt class="text-xs font-medium text-ink-muted">Signature Status</dt><dd class="mt-1"><amc-status-badge [label]="ct.signatureRequired ? ct.signatureStatus : 'Not required'" [tone]="ct.signatureRequired ? signatureTone[ct.signatureStatus] : 'neutral'" /></dd></div>
+              <amc-detail-item label="Execution Date" [value]="ct.executionDate ? formatDate(ct.executionDate) : null" />
+              <amc-detail-item label="Duration" [value]="ct.durationMonths + ' months'" />
+              <amc-detail-item label="Notice Period" [value]="ct.period.noticePeriodDays + ' days'" />
+              <amc-detail-item label="Auto Renewal" [value]="ct.period.autoRenewal ? 'Yes · ' + ct.period.renewalTermMonths + ' months' : 'No'" />
+              <amc-detail-item label="Billing" [value]="ct.commercial.billingFrequency + ' · ' + ct.commercial.billingMethod" />
+              <amc-detail-item label="SLA" [value]="ct.slaName" />
+              <amc-detail-item label="External Reference" [value]="ct.externalReference" />
+              <amc-detail-item class="col-span-2 lg:col-span-3" label="Scope" [value]="ct.scopeInfo.scope" />
+            </dl>
+          </amc-panel>
+          <amc-panel title="Record" icon="info">
+            <dl class="space-y-3">
+              <amc-detail-item label="Contract Request" [value]="ct.requestId" />
+              <amc-detail-item label="Template" [value]="ct.templateId" />
+              <amc-detail-item label="Parent Contract" [value]="ct.parentContractId" />
+              <amc-detail-item label="Created" [value]="formatDateTime(ct.createdAt) + ' · ' + ct.createdBy" />
+              <amc-detail-item label="Last Updated" [value]="ct.updatedAt ? formatDateTime(ct.updatedAt) + ' · ' + ct.updatedBy : null" />
+              <amc-detail-item label="Activated" [value]="ct.activatedAt ? formatDateTime(ct.activatedAt) : null" />
+              @if (ct.suspendedReason) { <amc-detail-item label="Suspension Reason" [value]="ct.suspendedReason" /> }
+            </dl>
+          </amc-panel>
+        </div>
+      }
+      @case ('parties') {
+        <amc-panel title="Parties" icon="users">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <amc-detail-item label="Customer / Contracting Party" [value]="ct.customerName" />
+            <amc-detail-item label="Customer Legal Entity" [value]="ct.parties.legalEntity" />
+            <amc-detail-item label="Contracting Organization" [value]="ct.companyName" />
+            <amc-detail-item label="Branch" [value]="ct.branchName" />
+            <amc-detail-item label="Vendor / Partner" [value]="ct.parties.vendorPartner" />
+            <amc-detail-item label="Primary Contact" [value]="ct.parties.primaryContact" />
+            <amc-detail-item label="Contract Owner" [value]="ct.ownerName" />
+            <amc-detail-item label="Contract Manager" [value]="ct.managerName" />
+            <amc-detail-item label="Account Manager" [value]="ct.accountManagerName" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('scope') {
+        <amc-panel title="Scope" icon="layers">
+          <dl class="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
+            <amc-detail-item class="lg:col-span-2" label="Contract Scope" [value]="ct.scopeInfo.scope" />
+            <amc-detail-item label="Service Categories" [value]="ct.scopeInfo.serviceCategories.join(', ')" />
+            <amc-detail-item label="Coverage" [value]="ct.scopeInfo.serviceIds.length + ' services · ' + ct.scopeInfo.siteIds.length + ' sites · ' + ct.scopeInfo.assetIds.length + ' assets'" />
+            <amc-detail-item label="Maintenance Requirements" [value]="ct.scopeInfo.maintenanceRequirements" />
+            <amc-detail-item label="Exclusions" [value]="ct.scopeInfo.exclusions" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('services') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="services()" [columns]="refColumns('Service', 'Category', serviceLink)" [trackBy]="trackById" emptyIcon="list" emptyTitle="No services" emptyMessage="Add covered services in the contract scope." /></section> }
+      @case ('sites') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="sites()" [columns]="refColumns('Site', 'City', siteLink)" [trackBy]="trackById" emptyIcon="map-pin" emptyTitle="No sites" emptyMessage="No sites covered." /></section> }
+      @case ('assets') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="assets()" [columns]="refColumns('Asset', 'Category · Site', assetLink)" [trackBy]="trackById" emptyIcon="box" emptyTitle="No assets" emptyMessage="No assets covered." /></section> }
+      @case ('sla') {
+        <amc-panel title="SLA & service coverage" icon="clock">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+            <amc-detail-item label="SLA" [value]="ct.slaName" />
+            <amc-detail-item label="Service Window" [value]="ct.service.serviceWindow" />
+            <amc-detail-item label="Service Frequency" [value]="ct.service.serviceFrequency" />
+            <amc-detail-item label="Included Visits" [value]="ct.service.includedVisits" />
+            <amc-detail-item label="Labor Coverage" [value]="ct.service.laborCoverage ? 'Included' : 'Chargeable'" />
+            <amc-detail-item label="Parts Coverage" [value]="ct.service.partsCoverage ? 'Included' : 'Chargeable'" />
+            <amc-detail-item label="Travel Coverage" [value]="ct.service.travelCoverage ? 'Included' : 'Chargeable'" />
+            <amc-detail-item label="Emergency Coverage" [value]="ct.service.emergencyCoverage ? 'Included' : 'Not included'" />
+            <amc-detail-item label="SLA Breaches (period)" [value]="ct.slaBreaches" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('entitlements') {
+        <section class="amc-card overflow-hidden">
+          <p class="border-b border-line bg-surface-muted px-4 py-2 text-xs text-ink-muted">Entitlements derived from this contract in the Service Catalog. {{ ct.effectiveStatus === 'Expired' ? 'Expired contracts do not provide active service coverage.' : '' }}</p>
+          <amc-data-table [rows]="entitlementRows()" [columns]="refColumns('Entitlement', 'Usage · Validity', entitlementLink)" [trackBy]="trackById" emptyIcon="shield-check" emptyTitle="No entitlements" emptyMessage="Create an entitlement for this contract in the Service Catalog." />
+        </section>
+      }
+      @case ('billing') {
+        <amc-panel title="Billing" icon="receipt">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+            <amc-detail-item label="Billing Frequency" [value]="ct.commercial.billingFrequency" />
+            <amc-detail-item label="Billing Method" [value]="ct.commercial.billingMethod" />
+            <amc-detail-item label="Payment Terms" [value]="refs.name('paymentTerms', ct.commercial.paymentTermsId)" />
+            <amc-detail-item label="Tax Profile" [value]="refs.name('taxProfiles', ct.commercial.taxProfileId)" />
+            <amc-detail-item label="Discount" [value]="ct.commercial.discountPercent + '%'" />
+            <amc-detail-item label="Deposit" [value]="ct.commercial.deposit !== null ? formatCurrency(ct.commercial.deposit, ct.commercial.currency) : null" />
+            <amc-detail-item label="Advance Payment" [value]="ct.commercial.advancePayment !== null ? formatCurrency(ct.commercial.advancePayment, ct.commercial.currency) : null" />
+            <amc-detail-item label="Price Escalation" [value]="ct.commercial.priceEscalationPercent !== null ? ct.commercial.priceEscalationPercent + '% on ' + formatDate(ct.commercial.priceRevisionDate) : null" />
+            <amc-detail-item label="Billed" [value]="formatCurrency(ct.tracking.billed, ct.commercial.currency)" />
+            <amc-detail-item label="Collected" [value]="formatCurrency(ct.tracking.collected, ct.commercial.currency)" />
+            <amc-detail-item label="Outstanding" [value]="formatCurrency(ct.outstanding, ct.commercial.currency)" />
+            <amc-detail-item label="Billing Account" [value]="ct.financial.billingAccount" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('obligations') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <p class="text-sm text-ink-muted">Obligations remain traceable to this contract.</p>
+            <a routerLink="/app/contracts/obligations" [queryParams]="{ contractId: ct.id, action: 'new' }" class="amc-btn-secondary amc-btn-sm"><amc-icon name="plus" [size]="14" /> Add Obligation</a>
+          </div>
+          <amc-data-table tableId="contract-obligations" [rows]="obligations()" [columns]="obligationCols" [trackBy]="trackById" emptyIcon="clipboard-list" emptyTitle="No obligations" emptyMessage="Add commitments that must be fulfilled during the contract." />
+        </section>
+      }
+      @case ('amendments') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <p class="text-sm text-ink-muted">Each executed amendment creates a new version; the original is preserved.</p>
+            <a routerLink="/app/contracts/amendments" [queryParams]="{ contractId: ct.id }" class="amc-btn-secondary amc-btn-sm">Manage amendments</a>
+          </div>
+          <amc-data-table [rows]="amendments()" [columns]="amendmentCols" [trackBy]="trackById" emptyIcon="layers" emptyTitle="No amendments" emptyMessage="Changes to the executed contract appear here." />
+        </section>
+      }
+      @case ('renewals') {
+        <section class="amc-card overflow-hidden">
+          <amc-data-table [rows]="renewals()" [columns]="renewalCols" [trackBy]="trackById" emptyIcon="refresh" emptyTitle="No renewals" emptyMessage="Renewal and extension requests for this contract appear here." />
+        </section>
+      }
+      @case ('documents') {
+        <amc-panel title="Documents" description="Version-controlled; executed documents are locked" icon="paperclip" [padded]="false">
+          <div panelActions class="flex items-center gap-2">
+            <amc-select inputId="cd-doctype" class="w-48" [options]="docTypeOptions" [(value)]="uploadType" ariaLabel="Document type" />
+            <label for="cd-files" class="amc-btn-secondary amc-btn-sm cursor-pointer"><amc-icon name="upload" [size]="14" /> Upload<input id="cd-files" type="file" multiple class="sr-only" (change)="upload($event)" /></label>
+          </div>
+          <ul class="divide-y divide-line">
+            @for (d of documents(); track d.id) {
+              <li class="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5" [class]="d.supersededById ? 'opacity-60' : ''">
+                <amc-icon [name]="d.locked ? 'lock' : 'paperclip'" [class]="d.locked ? 'text-ok' : 'text-ink-subtle'" />
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-ink">{{ d.name }}</p>
+                  <p class="text-xs text-ink-muted">{{ d.type }} · v{{ d.version }} · {{ formatFileSize(d.size) }} · {{ d.uploadedBy }} · {{ formatDateTime(d.uploadedAt) }}{{ d.supersededById ? ' · superseded' : '' }}{{ d.locked ? ' · executed (locked)' : '' }}</p>
+                </div>
+                @if (!d.locked && !d.supersededById) {
+                  <label [for]="'rep-' + d.id" class="amc-btn-ghost amc-btn-sm cursor-pointer text-xs">New version<input [id]="'rep-' + d.id" type="file" class="sr-only" (change)="upload($event, d)" /></label>
+                }
+              </li>
+            } @empty { <li class="p-6 text-center text-sm text-ink-muted">No documents.</li> }
+          </ul>
+        </amc-panel>
+      }
+      @case ('versions') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-5">
+          <amc-panel class="xl:col-span-2" title="Version history" description="Previous executed versions remain available" icon="history" [padded]="false">
+            <ol class="divide-y divide-line">
+              @for (v of versions(); track v.id) {
+                <li class="flex items-start gap-3 px-4 py-3 sm:px-5">
+                  <span class="mt-0.5 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold" [class]="v.executionStatus === 'Executed' ? 'bg-ok-subtle text-ok' : 'bg-surface-sunken text-ink-muted'">v{{ v.version }}</span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-ink">{{ v.changeSummary }}</p>
+                    <p class="text-xs text-ink-muted">{{ formatDateTime(v.createdAt) }} · {{ v.createdBy }} · Approval: {{ v.approvalStatus }} · {{ v.executionStatus }}{{ v.documentId ? ' · Doc ' + v.documentId : '' }}</p>
+                  </div>
+                </li>
+              }
+            </ol>
+          </amc-panel>
+          <amc-panel class="xl:col-span-3" title="Compare versions" icon="layers"><amc-version-compare [versions]="versions()" /></amc-panel>
+        </div>
+      }
+      @case ('approvals') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <p class="text-sm text-ink-muted">Approval route for the contract, amendments and renewals.</p>
+            <a routerLink="/app/contracts/approvals" [queryParams]="{ contractId: ct.id }" class="amc-btn-secondary amc-btn-sm">Open approvals</a>
+          </div>
+          <amc-data-table [rows]="approvals()" [columns]="approvalCols" [trackBy]="trackById" emptyIcon="check-circle" emptyTitle="No approvals yet" emptyMessage="Submit the contract for approval to start the workflow." />
+        </section>
+      }
+      @case ('signatures') {
+        <amc-panel title="Signatures" [description]="signature()?.envelope ? 'Envelope ' + signature()!.envelope!.id + ' · ' + signature()!.envelope!.provider : 'Not sent for signature'" icon="pen-tool" [padded]="false">
+          <a panelActions routerLink="/app/contracts/execution" [queryParams]="{ contractId: ct.id }" class="amc-btn-secondary amc-btn-sm">Open e-signature</a>
+          <ul class="divide-y divide-line">
+            @for (s of signature()?.signatories ?? []; track s.id) {
+              <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-surface-sunken text-xs font-semibold text-ink-muted">{{ s.order }}</span>
+                <div class="min-w-0 flex-1"><p class="text-sm font-medium text-ink">{{ s.name }} <span class="font-normal text-ink-muted">· {{ s.role }} ({{ s.party }})</span></p><p class="text-xs text-ink-muted">{{ s.email }}{{ s.signedAt ? ' · signed ' + formatDateTime(s.signedAt) + ' · ' + s.ipAddress : '' }}</p></div>
+                <amc-status-badge [label]="s.status" [tone]="signerTone[s.status]" />
+              </li>
+            } @empty { <li class="p-6 text-center text-sm text-ink-muted">{{ ct.signatureRequired ? 'No signatories yet.' : 'Signature is not required for this contract.' }}</li> }
+          </ul>
+        </amc-panel>
+      }
+      @case ('service-history') {
+        <section class="amc-card overflow-hidden"><amc-data-table tableId="contract-service-history" [rows]="historyRows()" [columns]="refColumns('Service Visit', 'Date · Type · Technician · Site', noLink)" [trackBy]="trackById" emptyIcon="history" emptyTitle="No service history" emptyMessage="Service visits at covered sites during the contract period appear here." /></section>
+      }
+      @case ('financials') {
+        @let f = financials()!;
+        <amc-panel title="Commercial tracking" description="Integrated with Billing & Revenue and Cost & Profitability" icon="wallet">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+            <amc-detail-item label="Contract Value" [value]="formatCurrency(ct.commercial.value, ct.commercial.currency)" />
+            <amc-detail-item label="Billed Amount" [value]="formatCurrency(f.billed, ct.commercial.currency) + ' (' + f.billedPct + '%)'" />
+            <amc-detail-item label="Collected Amount" [value]="formatCurrency(f.collected, ct.commercial.currency)" />
+            <amc-detail-item label="Outstanding Amount" [value]="formatCurrency(f.outstanding, ct.commercial.currency)" />
+            <amc-detail-item label="Recognized Revenue" [value]="formatCurrency(f.recognizedRevenue, ct.commercial.currency)" />
+            <amc-detail-item label="Estimated Cost" [value]="formatCurrency(ct.financial.estimatedCost, ct.commercial.currency)" />
+            <amc-detail-item label="Actual Cost" [value]="formatCurrency(f.actualCost, ct.commercial.currency)" />
+            <amc-detail-item label="Gross Profit" [value]="formatCurrency(f.grossProfit, ct.commercial.currency)" />
+            <amc-detail-item label="Gross Margin" [value]="f.grossMargin + '%'" />
+            <amc-detail-item label="Discount" [value]="formatCurrency(f.discount, ct.commercial.currency) + ' (' + ct.commercial.discountPercent + '%)'" />
+            <amc-detail-item label="Tax" [value]="formatCurrency(f.tax, ct.commercial.currency)" />
+            <amc-detail-item label="Additional Charges" [value]="formatCurrency(f.additionalCharges, ct.commercial.currency)" />
+            <amc-detail-item label="Revenue Account" [value]="ct.financial.revenueAccount" />
+            <amc-detail-item label="Cost Center" [value]="ct.financial.costCenter" />
+            <amc-detail-item label="Profit Center" [value]="ct.financial.profitCenter" />
+          </dl>
+          <div class="mt-5">
+            <p class="text-xs text-ink-muted">Billing progress</p>
+            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-sunken"><div class="h-full rounded-full bg-brand" [style.width.%]="f.billedPct > 100 ? 100 : f.billedPct"></div></div>
+          </div>
+        </amc-panel>
+      }
+      @case ('activity') {
+        <amc-contract-history-timeline [contractId]="ct.id" [refreshKey]="refreshKey()" />
+      }
+    }
+  </div>
+}
+<amc-contract-action-host (done)="refresh()" />
