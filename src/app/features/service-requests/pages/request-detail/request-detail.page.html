@@ -1,0 +1,458 @@
+@if (res.isLoading() && !r()) {
+  <div class="space-y-4"><amc-skeleton height="110px" /><amc-skeleton height="90px" /><amc-skeleton height="420px" /></div>
+} @else if (res.error() || !r()) {
+  <div class="amc-card"><amc-error-state message="The service request could not be loaded." (retry)="res.reload()" /></div>
+} @else {
+  @let req = r()!;
+  <div class="space-y-5">
+    <div class="space-y-3">
+      <amc-breadcrumbs [items]="[{ label: 'Service Requests', path: '/app/service-requests/dashboard' }, { label: 'Requests', path: '/app/service-requests/list' }, { label: req.number }]" />
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl font-semibold text-ink">{{ req.number }}</h1>
+            <amc-status-badge [label]="req.status === 'Pending' && req.onHold ? 'Pending — ' + req.onHold.reason : req.status" [tone]="statusTone[req.status]" />
+            <amc-status-badge [label]="req.priority" [tone]="priorityTone[req.priority]" />
+            <amc-status-badge [label]="req.slaState" [tone]="slaTone[req.slaState]" />
+            <amc-status-badge [label]="req.coverage.result" [tone]="coverageTone[req.coverage.result]" />
+            @if (req.escalated) { <amc-status-badge label="Escalated" tone="danger" /> }
+            @if (req.duplicateOf) { <amc-status-badge [label]="'Duplicate of ' + req.duplicateOf" tone="neutral" /> }
+          </div>
+          <p class="mt-1 truncate text-sm text-ink-muted">{{ req.subject }} · {{ req.customerName }} · {{ req.siteName }}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="amc-btn-ghost" (click)="refresh()" aria-label="Refresh"><amc-icon name="refresh" /></button>
+          <a [routerLink]="['/app/service-requests', req.id, 'edit']" class="amc-btn-secondary"><amc-icon name="pencil" /> Edit</a>
+          <amc-action-menu label="Actions" [items]="menu()" (action)="onAction($event)" />
+        </div>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Request indicators">
+      <amc-kpi-card label="Age" icon="clock" [value]="fm(req.ageHours * 60)" />
+      <amc-kpi-card label="Response Clock" icon="activity" [tone]="slaTone[req.response.state]" [value]="req.response.remainingMinutes !== null ? (req.response.remainingMinutes >= 0 ? fm(req.response.remainingMinutes) + ' left' : fm(-req.response.remainingMinutes) + ' over') : req.response.state" />
+      <amc-kpi-card label="Resolution Clock" icon="activity" [tone]="slaTone[req.resolutionClock.state]" [value]="req.resolutionClock.remainingMinutes !== null ? (req.resolutionClock.remainingMinutes >= 0 ? fm(req.resolutionClock.remainingMinutes) + ' left' : fm(-req.resolutionClock.remainingMinutes) + ' over') : req.resolutionClock.state" />
+      <amc-kpi-card label="Work Orders" icon="wrench" [value]="req.workOrders.length" />
+      <amc-kpi-card label="Reopened" icon="rotate-ccw" [tone]="req.reopenCount ? 'warn' : 'neutral'" [value]="req.reopenCount" />
+      <amc-kpi-card label="Cost" icon="wallet" [value]="formatCurrency(req.cost.total)" />
+    </section>
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" [maxVisible]="9" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <div class="space-y-5 xl:col-span-2">
+            <amc-panel title="Request Details" icon="ticket">
+              <dl class="grid grid-cols-2 gap-x-6 gap-y-4 p-4 sm:grid-cols-3 sm:p-5">
+                <amc-detail-item label="Type" [value]="req.type" />
+                <amc-detail-item label="Category / Subcategory" [value]="req.serviceCategory + (req.subcategory ? ' · ' + req.subcategory : '')" />
+                <amc-detail-item label="Channel" [value]="req.source" />
+                <amc-detail-item label="Created" [value]="formatDateTime(req.createdAt)" />
+                <amc-detail-item label="Created By" [value]="req.createdBy" />
+                <amc-detail-item label="Last Updated" [value]="formatDateTime(req.updatedAt)" />
+                <amc-detail-item label="Requested Date" [value]="req.requestedDate ? formatDate(req.requestedDate) + (req.requestedTime ? ' ' + req.requestedTime : '') : '—'" />
+                <amc-detail-item label="Customer Reference" [value]="req.customerReference || '—'" />
+                <amc-detail-item label="Origin" [value]="req.origin.process + (req.origin.planNumber ? ' · ' + req.origin.planNumber : '')" />
+              </dl>
+              <div class="border-t border-line p-4 sm:px-5">
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Description</p>
+                <p class="mt-1 whitespace-pre-line text-sm text-ink">{{ req.description }}</p>
+              </div>
+            </amc-panel>
+            @if (req.resolution) {
+              <amc-panel title="Latest Resolution" icon="check-circle">
+                <div class="p-4 text-sm sm:p-5">
+                  <p class="font-medium text-ink">{{ req.resolution!.code }} · {{ req.resolution!.category }}</p>
+                  <p class="mt-1 text-ink">{{ req.resolution!.description }}</p>
+                  <p class="mt-1 text-xs text-ink-muted">Resolved {{ formatDateTime(req.resolution!.completedAt) }} by {{ req.resolution!.resolvedBy }}</p>
+                </div>
+              </amc-panel>
+            }
+          </div>
+          <div class="space-y-5">
+            <amc-panel title="Customer" icon="building" [padded]="false">
+              <div class="p-4 sm:p-5">
+                <a [routerLink]="['/app/customers', req.customer.customerId]" class="text-sm font-medium text-ink hover:text-brand">{{ req.customerName }}</a>
+                <p class="mt-0.5 text-xs text-ink-muted">{{ req.siteName }}</p>
+                <p class="mt-2 text-xs text-ink">{{ req.customer.contactName }}<br />{{ req.customer.phone }} {{ req.customer.email }}</p>
+              </div>
+            </amc-panel>
+            @if (req.assetName) {
+              <amc-panel title="Asset" icon="box" [padded]="false">
+                <div class="p-4 sm:p-5">
+                  <a [routerLink]="['/app/assets', req.assetId]" class="text-sm font-medium text-ink hover:text-brand">{{ req.assetName }}</a>
+                  @if (asset(); as a) { <p class="mt-0.5 text-xs text-ink-muted">{{ a.serialNumber }} · {{ a.criticality }} criticality · Warranty: {{ a.warrantyStatus }}</p> }
+                </div>
+              </amc-panel>
+            }
+            <amc-panel title="Assignment" icon="user-check" [padded]="false">
+              <div class="p-4 text-sm sm:p-5">
+                <p class="font-medium text-ink">{{ req.assignment.team ?? 'Unassigned' }}{{ req.assignment.technician ? ' · ' + req.assignment.technician : '' }}</p>
+                @if (req.assignment.method) { <p class="mt-0.5 text-xs text-ink-muted">{{ req.assignment.method }}{{ req.assignment.assignedAt ? ' · ' + relativeTime(req.assignment.assignedAt) : '' }}</p> }
+              </div>
+            </amc-panel>
+            @if (req.schedule) {
+              <amc-panel title="Appointment" icon="calendar-check" [padded]="false">
+                <div class="p-4 text-sm sm:p-5">
+                  <p class="font-medium text-ink">{{ formatDate(req.schedule!.scheduledDate) }} · {{ req.schedule!.startTime }}–{{ req.schedule!.endTime }}</p>
+                  <p class="mt-0.5 text-xs text-ink-muted">{{ req.schedule!.appointmentType }}</p>
+                </div>
+              </amc-panel>
+            }
+            @if (req.onHold) {
+              <amc-panel title="On Hold" icon="pause" [padded]="false">
+                <div class="p-4 text-sm sm:p-5">
+                  <p class="font-medium text-ink">{{ req.onHold!.reason }}</p>
+                  <p class="mt-0.5 text-xs text-ink-muted">Since {{ formatDateTime(req.onHold!.startedAt) }} · SLA {{ req.onHold!.pausesSla ? 'paused' : 'running' }}</p>
+                </div>
+              </amc-panel>
+            }
+          </div>
+        </div>
+      }
+      @case ('customer') {
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <amc-panel title="Customer" icon="building">
+            <dl class="grid grid-cols-2 gap-4 p-4 sm:p-5">
+              <amc-detail-item label="Customer" [value]="req.customerName" />
+              <amc-detail-item label="Status" [value]="req.customerStatus" />
+              <amc-detail-item label="Contact" [value]="req.customer.contactName || '—'" />
+              <amc-detail-item label="Phone / Email" [value]="(req.customer.phone || '—') + '  ' + (req.customer.email || '')" />
+            </dl>
+          </amc-panel>
+          <amc-panel title="Site & Location" icon="map-pin">
+            <dl class="grid grid-cols-2 gap-4 p-4 sm:p-5">
+              <amc-detail-item label="Site" [value]="req.siteName" />
+              <amc-detail-item label="Region" [value]="req.region" />
+              <amc-detail-item label="Building / Area" [value]="(req.location.building || '—') + (req.location.area ? ' · ' + req.location.area : '')" />
+              <amc-detail-item label="Access Instructions" [value]="req.location.accessInstructions || '—'" />
+            </dl>
+          </amc-panel>
+        </div>
+      }
+      @case ('asset') {
+        <amc-panel title="Asset" icon="box">
+          @if (asset(); as a) {
+            <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 sm:p-5">
+              <amc-detail-item label="Asset" [value]="a.name" />
+              <amc-detail-item label="Code / Serial" [value]="a.code + ' · ' + a.serialNumber" />
+              <amc-detail-item label="Category / Type" [value]="a.category + ' · ' + a.type" />
+              <amc-detail-item label="Manufacturer / Model" [value]="a.manufacturer + ' ' + a.model" />
+              <amc-detail-item label="Status / Criticality" [value]="a.status + ' · ' + a.criticality" />
+              <amc-detail-item label="Warranty" [value]="a.warrantyStatus + (a.warrantyEnd ? ' until ' + a.warrantyEnd : '')" />
+              <amc-detail-item label="Installed" [value]="a.installationDate ?? '—'" />
+              <amc-detail-item label="Location" [value]="locationOf(a)" />
+            </dl>
+          } @else {
+            <p class="p-4 text-sm text-ink-muted sm:p-5">No asset linked to this request.</p>
+          }
+        </amc-panel>
+      }
+      @case ('classification') {
+        <amc-panel title="Classification" icon="list">
+          <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 sm:p-5">
+            <amc-detail-item label="Request Type" [value]="req.type" />
+            <amc-detail-item label="Service Category" [value]="req.serviceCategory" />
+            <amc-detail-item label="Subcategory" [value]="req.subcategory || '—'" />
+            <amc-detail-item label="Problem Category" [value]="req.classification.problemCategory || '—'" />
+            <amc-detail-item label="Problem Code" [value]="req.classification.problemCode || '—'" />
+            <amc-detail-item label="Service Code" [value]="req.classification.serviceCode || '—'" />
+            <amc-detail-item label="Failure Type" [value]="req.classification.failureType || '—'" />
+            <amc-detail-item label="Symptom" [value]="req.classification.symptom || '—'" />
+            <amc-detail-item label="Suspected Cause" [value]="req.classification.cause || '—'" />
+            <amc-detail-item label="Urgency" [value]="req.classification.urgency" />
+            <amc-detail-item label="Business Impact" [value]="req.classification.businessImpact" />
+            <amc-detail-item label="Affected Users" [value]="req.classification.affectedUsers" />
+            <amc-detail-item label="Required Skill" [value]="req.classification.requiredSkill || '—'" />
+            <amc-detail-item label="Suggested By" [value]="req.classification.suggestedBy ?? 'Manual'" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('coverage') {
+        <amc-panel title="Contract / AMC / Entitlement Validation" description="Coverage result and every check that produced it." icon="shield-check">
+          <div class="space-y-4 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center gap-3">
+              <amc-status-badge [label]="req.coverage.result" [tone]="coverageTone[req.coverage.result]" />
+              @if (req.coverage.chargeable) { <amc-status-badge label="Chargeable" tone="warn" /> }
+              @if (req.coverage.approval !== 'Not Required') { <amc-status-badge [label]="'Approval: ' + req.coverage.approval" [tone]="req.coverage.approval === 'Approved' ? 'ok' : req.coverage.approval === 'Rejected' ? 'danger' : 'warn'" /> }
+              @if (req.coverage.validatedAt) { <span class="text-xs text-ink-muted">Validated {{ formatDateTime(req.coverage.validatedAt) }}</span> }
+              <span class="grow"></span>
+              <button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onAction('validate')"><amc-icon name="refresh" /> Re-validate</button>
+              @if (req.coverage.chargeable && req.coverage.approval === 'Pending') { <button type="button" class="amc-btn-primary amc-btn-sm" (click)="onAction('coverage')">Decide Approval</button> }
+            </div>
+            <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <amc-detail-item label="Contract" [value]="req.contractNumber ?? '—'" />
+              <amc-detail-item label="AMC" [value]="req.amcNumber ?? '—'" />
+              <amc-detail-item label="Warranty" [value]="req.coverage.warranty ? req.coverage.warranty.status + (req.coverage.warranty.endDate ? ' until ' + req.coverage.warranty.endDate : '') + ' · ' + req.coverage.warranty.provider : '—'" />
+              <amc-detail-item label="Entitlement" [value]="req.coverage.entitlement || '—'" />
+              <amc-detail-item label="Covered Service" [value]="req.coverage.coveredService || '—'" />
+            </dl>
+            <div>
+              <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Validation steps</p>
+              <ul class="space-y-2">
+                @for (s of req.coverage.steps; track s.step) {
+                  <li class="flex items-start gap-2 text-sm">
+                    <amc-icon [name]="s.result === 'pass' ? 'check-circle' : s.result === 'fail' ? 'x' : s.result === 'warn' ? 'alert-triangle' : 'more-horizontal'" [class]="'mt-0.5 h-4 w-4 ' + (s.result === 'pass' ? 'text-ok' : s.result === 'fail' ? 'text-danger' : s.result === 'warn' ? 'text-warn' : 'text-ink-faint')" />
+                    <div><p class="font-medium text-ink">{{ s.step }}</p><p class="text-xs text-ink-muted">{{ s.detail }}</p></div>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        </amc-panel>
+      }
+      @case ('sla') {
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <amc-panel title="SLA" icon="clock">
+            @if (req.sla.slaId) {
+              <dl class="grid grid-cols-2 gap-4 p-4 sm:p-5">
+                <amc-detail-item label="SLA" [value]="(req.sla.slaNumber ?? '') + ' · ' + (req.sla.slaName ?? '')" />
+                <amc-detail-item label="Applicability" [value]="req.sla.applicability" />
+                <amc-detail-item label="Response Target" [value]="fm(req.sla.responseMinutes)" />
+                <amc-detail-item label="Resolution Target" [value]="fm(req.sla.resolutionMinutes)" />
+                <amc-detail-item label="Responded" [value]="req.sla.respondedAt ? formatDateTime(req.sla.respondedAt) : 'Not yet'" />
+                <amc-detail-item label="Resolved" [value]="req.sla.resolvedAt ? formatDateTime(req.sla.resolvedAt) : 'Not yet'" />
+              </dl>
+              <div class="space-y-3 border-t border-line p-4 sm:p-5">
+                @for (c of [req.response, req.resolutionClock]; track c.targetMinutes) {
+                  <div>
+                    <div class="mb-1 flex justify-between text-xs"><span class="font-medium text-ink">{{ $index === 0 ? 'Response' : 'Resolution' }} clock</span><span class="tabular-nums text-ink-muted">{{ c.elapsedMinutes >= 0 ? fm(c.elapsedMinutes) : '—' }} / {{ fm(c.targetMinutes) }} ({{ c.consumption }}%)</span></div>
+                    <div class="h-2 overflow-hidden rounded-full bg-surface-sunken"><div class="h-full rounded-full" [class]="c.consumption >= 100 ? 'bg-danger' : c.consumption >= 75 ? 'bg-warn' : 'bg-ok'" [style.width.%]="[c.consumption, 100].reduce((a, b) => a < b ? a : b)"></div></div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="p-4 sm:p-5">
+                <p class="text-sm text-ink-muted">No SLA applies to this request.</p>
+                <button type="button" class="amc-btn-secondary amc-btn-sm mt-3" (click)="onAction('sla')"><amc-icon name="refresh" /> Recalculate SLA</button>
+              </div>
+            }
+          </amc-panel>
+          <amc-panel title="Priority" icon="alert-triangle">
+            <dl class="grid grid-cols-2 gap-4 p-4 sm:p-5">
+              <amc-detail-item label="Priority" [value]="req.priority" />
+              <amc-detail-item label="Urgency × Impact" [value]="req.classification.urgency + ' × ' + req.classification.businessImpact" />
+            </dl>
+            <div class="border-t border-line p-4 sm:px-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Why this priority</p>
+              <p class="mt-1 text-sm text-ink">{{ req.priorityReason }}</p>
+              <button type="button" class="amc-btn-secondary amc-btn-sm mt-3" (click)="onAction('priority')"><amc-icon name="pencil" /> Change priority</button>
+            </div>
+          </amc-panel>
+        </div>
+      }
+      @case ('assignment') {
+        <div class="space-y-5">
+          <amc-panel title="Current Assignment" icon="user-check">
+            <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 sm:p-5">
+              <amc-detail-item label="Team" [value]="req.assignment.team ?? '—'" />
+              <amc-detail-item label="Technician" [value]="req.assignment.technician ?? '—'" />
+              <amc-detail-item label="Dispatcher" [value]="req.assignment.dispatcher ?? '—'" />
+              <amc-detail-item label="Method" [value]="req.assignment.method || '—'" />
+              <amc-detail-item label="Skill / Region" [value]="(req.assignment.skill || '—') + ' · ' + (req.assignment.region || '—')" />
+              <amc-detail-item label="Assigned" [value]="req.assignment.assignedAt ? formatDateTime(req.assignment.assignedAt) : '—'" />
+            </dl>
+            @if (req.assignment.reason) { <p class="border-t border-line p-4 text-sm text-ink-muted sm:px-5">{{ req.assignment.reason }}</p> }
+          </amc-panel>
+          @if (req.assignmentHistory.length) {
+            <amc-panel title="Assignment History" icon="history" [padded]="false">
+              <ul class="divide-y divide-line">
+                @for (h of req.assignmentHistory; track $index) {
+                  <li class="px-4 py-3 text-sm sm:px-5">
+                    <p class="font-medium text-ink">{{ h.team ?? '—' }}{{ h.technician ? ' · ' + h.technician : '' }} <span class="text-xs font-normal text-ink-muted">· {{ h.method }}</span></p>
+                    <p class="mt-0.5 text-xs text-ink-muted">{{ h.assignedAt ? formatDateTime(h.assignedAt) : '' }} · by {{ h.by }}{{ h.reason ? ' · ' + h.reason : '' }}</p>
+                  </li>
+                }
+              </ul>
+            </amc-panel>
+          }
+        </div>
+      }
+      @case ('schedule') {
+        <div class="space-y-5">
+          <amc-panel title="Appointment" icon="calendar-check">
+            @if (req.schedule) {
+              <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 sm:p-5">
+                <amc-detail-item label="Date" [value]="formatDate(req.schedule!.scheduledDate)" />
+                <amc-detail-item label="Time" [value]="req.schedule!.startTime + '–' + req.schedule!.endTime + ' (' + fm(req.schedule!.durationMinutes) + ')'" />
+                <amc-detail-item label="Type" [value]="req.schedule!.appointmentType" />
+                <amc-detail-item label="Customer Availability" [value]="req.schedule!.customerAvailability || '—'" />
+                <amc-detail-item label="Access" [value]="req.schedule!.access || '—'" />
+              </dl>
+            } @else {
+              <p class="p-4 text-sm text-ink-muted sm:p-5">No appointment scheduled yet — use Schedule from the actions menu.</p>
+            }
+          </amc-panel>
+          @if (req.scheduleHistory.length) {
+            <amc-panel title="Schedule History" icon="history" [padded]="false">
+              <ul class="divide-y divide-line">
+                @for (h of req.scheduleHistory; track $index) {
+                  <li class="px-4 py-3 text-sm sm:px-5">
+                    <p class="font-medium text-ink">{{ formatDate(h.scheduledDate) }} · {{ h.startTime }}–{{ h.endTime }} <span class="text-xs font-normal text-ink-muted">· {{ h.appointmentType }}</span></p>
+                    <p class="mt-0.5 text-xs text-ink-muted">{{ formatDateTime(h.at) }} · by {{ h.by }}{{ h.reason ? ' · ' + h.reason : '' }}</p>
+                  </li>
+                }
+              </ul>
+            </amc-panel>
+          }
+          @if (req.holds.length) {
+            <amc-panel title="Holds" icon="pause" [padded]="false"><amc-data-table tableId="sr-holds" [entity]="{ singular: 'hold', plural: 'holds' }" [rows]="req.holds" [columns]="holdColumns" [trackBy]="trackHold" [compact]="true" /></amc-panel>
+          }
+        </div>
+      }
+      @case ('activity') {
+        <amc-panel title="Communication & Activity" icon="inbox" [padded]="false">
+          <div class="border-b border-line p-3 sm:p-4"><button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onAction('note')"><amc-icon name="plus" /> Add Activity</button></div>
+          <amc-data-table tableId="sr-activity" [entity]="{ singular: 'activity', plural: 'activities' }" [rows]="req.activities" [columns]="activityColumns" [trackBy]="trackById" emptyIcon="inbox" emptyTitle="No activity yet" emptyMessage="Calls, emails, portal messages and notes appear here." />
+        </amc-panel>
+      }
+      @case ('work-orders') {
+        <amc-panel title="Work Orders" icon="wrench" [padded]="false">
+          <div class="border-b border-line p-3 sm:p-4"><button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onAction('workorder')"><amc-icon name="plus" /> Convert to Work Order</button></div>
+          <amc-data-table tableId="sr-wos" [entity]="{ singular: 'work order', plural: 'work orders' }" [rows]="req.workOrders" [columns]="woColumns" [trackBy]="trackById" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Convert the request to a work order to dispatch work." />
+          @for (w of req.workOrders; track w.id) {
+            @if (w.parts.length) {
+              <div class="border-t border-line px-4 py-3 sm:px-5">
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">{{ w.number }} — parts used</p>
+                <ul class="mt-1 space-y-1 text-sm text-ink">@for (p of w.parts; track p.partNumber) { <li>{{ p.partNumber }} · {{ p.description }} × {{ p.quantity }} — {{ formatCurrency(p.unitCost * p.quantity) }}</li> }</ul>
+              </div>
+            }
+          }
+        </amc-panel>
+      }
+      @case ('resolution') {
+        <div class="space-y-5">
+          <amc-panel title="Resolution" icon="check-circle">
+            @if (req.resolution) {
+              <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 sm:p-5">
+                <amc-detail-item label="Resolution Code" [value]="req.resolution!.code" />
+                <amc-detail-item label="Category" [value]="req.resolution!.category" />
+                <amc-detail-item label="Resolved" [value]="formatDateTime(req.resolution!.completedAt) + ' by ' + req.resolution!.resolvedBy" />
+                <amc-detail-item label="Labour" [value]="fm(req.resolution!.labourMinutes)" />
+                <amc-detail-item label="Root Cause" [value]="req.resolution!.rootCause || '—'" />
+                <amc-detail-item label="Corrective Action" [value]="req.resolution!.correctiveAction || '—'" />
+              </dl>
+              <div class="space-y-3 border-t border-line p-4 text-sm sm:p-5">
+                <div><p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Resolution</p><p class="mt-1 whitespace-pre-line text-ink">{{ req.resolution!.description }}</p></div>
+                @if (req.resolution!.findings) { <div><p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Technician Findings</p><p class="mt-1 whitespace-pre-line text-ink">{{ req.resolution!.findings }}</p></div> }
+                @if (req.resolution!.recommendation) { <div><p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Preventive Recommendation</p><p class="mt-1 text-ink">{{ req.resolution!.recommendation }}</p></div> }
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Customer Confirmation</p>
+                  @if (req.resolution!.confirmation) {
+                    <p class="mt-1 text-ink"><amc-status-badge [label]="req.resolution!.confirmation!.confirmed ? 'Confirmed' : 'Not accepted'" [tone]="req.resolution!.confirmation!.confirmed ? 'ok' : 'danger'" /> by {{ req.resolution!.confirmation!.by }} · {{ formatDateTime(req.resolution!.confirmation!.at) }}</p>
+                    @if (req.resolution!.confirmation!.comment) { <p class="mt-1 text-ink-muted">{{ req.resolution!.confirmation!.comment }}</p> }
+                  } @else {
+                    <p class="mt-1 text-ink-muted">Pending.</p>
+                    @if (req.status === 'Resolved') { <button type="button" class="amc-btn-secondary amc-btn-sm mt-2" (click)="onAction('confirm')">Record confirmation</button> }
+                  }
+                </div>
+                @if (req.resolution!.closureNotes) { <div><p class="text-xs font-semibold uppercase tracking-wide text-ink-muted">Closure Notes</p><p class="mt-1 text-ink">{{ req.resolution!.closureNotes }}</p></div> }
+              </div>
+            } @else {
+              <p class="p-4 text-sm text-ink-muted sm:p-5">Not resolved yet — use Resolve from the actions menu once work is complete.</p>
+            }
+          </amc-panel>
+          @for (prev of req.previousResolutions; track prev.completedAt) {
+            <amc-panel [title]="'Previous Resolution — ' + formatDate(prev.completedAt)" icon="rotate-ccw">
+              <div class="p-4 text-sm sm:p-5"><p class="font-medium text-ink">{{ prev.code }} · {{ prev.category }}</p><p class="mt-1 text-ink">{{ prev.description }}</p></div>
+            </amc-panel>
+          }
+          @if (req.cancellation) {
+            <amc-panel title="Cancelled" icon="ban">
+              <div class="p-4 text-sm sm:p-5"><p class="font-medium text-ink">{{ req.cancellation!.reason }}</p><p class="mt-1 text-ink-muted">{{ req.cancellation!.comment }} · {{ formatDateTime(req.cancellation!.at) }} by {{ req.cancellation!.by }}</p></div>
+            </amc-panel>
+          }
+        </div>
+      }
+      @case ('escalation') {
+        <amc-panel [title]="'Escalation — Level ' + req.escalation.level" icon="alert-triangle" [padded]="false">
+          @if (!req.escalation.events.length) {
+            <p class="p-4 text-sm text-ink-muted sm:p-5">No escalations. Automatic rules escalate SLA risk, unassigned criticals and excessive pending.</p>
+          } @else {
+            <ul class="divide-y divide-line">
+              @for (e of req.escalation.events; track $index) {
+                <li class="flex items-start gap-3 px-4 py-3 sm:px-5">
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-danger-subtle text-xs font-bold text-danger">{{ e.level }}</span>
+                  <div class="min-w-0 flex-1 text-sm">
+                    <p class="font-medium text-ink">{{ e.trigger }} → {{ e.action }}</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">{{ formatDateTime(e.at) }} · by {{ e.by }}{{ e.reason ? ' · ' + e.reason : '' }}</p>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </amc-panel>
+      }
+      @case ('attachments') {
+        <amc-panel title="Attachments & Evidence" icon="paperclip" [padded]="false">
+          <div class="border-b border-line p-3 sm:p-4"><button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onAction('attachment')"><amc-icon name="plus" /> Add Attachment</button></div>
+          @if (!req.attachments.length) {
+            <p class="p-4 text-sm text-ink-muted sm:p-5">No attachments — photos, reports and evidence appear here.</p>
+          } @else {
+            <ul class="divide-y divide-line">
+              @for (a of req.attachments; track a.id) {
+                <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                  <amc-icon name="paperclip" class="h-4 w-4 shrink-0 text-ink-muted" />
+                  <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-ink">{{ a.name }}</p><p class="text-xs text-ink-muted">{{ a.kind }} · {{ formatFileSize(a.size) }} · {{ a.by }} · {{ relativeTime(a.at) }}</p></div>
+                  <amc-status-badge [label]="a.visibility" [tone]="a.visibility === 'Customer Visible' ? 'info' : 'neutral'" />
+                </li>
+              }
+            </ul>
+          }
+        </amc-panel>
+      }
+      @case ('linked') {
+        <amc-panel title="Linked & Duplicate Requests" icon="layers" [padded]="false">
+          @if (!linked().length && !parent()) {
+            <p class="p-4 text-sm text-ink-muted sm:p-5">No linked requests. Duplicates detected at creation and follow-ups appear here.</p>
+          } @else {
+            <ul class="divide-y divide-line">
+              @if (parent(); as p) {
+                <li class="px-4 py-3 sm:px-5"><a [routerLink]="['/app/service-requests', p.id]" class="text-sm font-medium text-ink hover:text-brand">{{ p.number }} · {{ p.subject }}</a><p class="text-xs text-ink-muted">Follow-up of this request · {{ p.status }}</p></li>
+              }
+              @for (l of linked(); track l.id) {
+                <li class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                  <div class="min-w-0 flex-1"><a [routerLink]="['/app/service-requests', l.id]" class="block truncate text-sm font-medium text-ink hover:text-brand">{{ l.number }} · {{ l.subject }}</a><p class="text-xs text-ink-muted">{{ l.customerName }} · {{ formatDate(l.createdAt) }}</p></div>
+                  <amc-status-badge [label]="l.id === req.duplicateOf ? 'Primary' : l.status" [tone]="l.id === req.duplicateOf ? 'brand' : statusTone[l.status]" />
+                </li>
+              }
+            </ul>
+          }
+        </amc-panel>
+      }
+      @case ('cost') {
+        <amc-panel title="Cost & Billing" description="All cost is traceable to work orders for profitability." icon="wallet">
+          <dl class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 sm:p-5">
+            <amc-detail-item label="Labour" [value]="formatCurrency(req.cost.labour)" />
+            <amc-detail-item label="Parts" [value]="formatCurrency(req.cost.parts)" />
+            <amc-detail-item label="Travel & Other" [value]="formatCurrency(req.cost.travel)" />
+            <amc-detail-item label="Total Cost" [value]="formatCurrency(req.cost.total)" />
+          </dl>
+          <div class="border-t border-line p-4 text-sm sm:px-5">
+            @if (req.coverage.chargeable) {
+              <p class="text-ink">Chargeable request — bill {{ formatCurrency(req.cost.total) }} to the customer{{ req.coverage.approval === 'Approved' ? ' (approved)' : '' }}.</p>
+            } @else {
+              <p class="text-ink">Covered service — cost is absorbed by the {{ req.amcNumber ? 'AMC ' + req.amcNumber : 'contract/warranty' }} and feeds contract profitability.</p>
+            }
+          </div>
+        </amc-panel>
+      }
+      @case ('notes') {
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <amc-panel title="Customer Note" icon="inbox"><p class="whitespace-pre-line p-4 text-sm text-ink sm:p-5">{{ req.notes.customer || '—' }}</p></amc-panel>
+          <amc-panel title="Internal Note" icon="lock"><p class="whitespace-pre-line p-4 text-sm text-ink sm:p-5">{{ req.notes.internal || '—' }}</p></amc-panel>
+        </div>
+      }
+      @case ('validation') {
+        <amc-panel title="Request Validation" description="SRS 9.24 checks — required for the request to move forward." icon="check-circle" [padded]="false">
+          <amc-sr-validation [groups]="validation()" />
+        </amc-panel>
+      }
+      @case ('history') {
+        <amc-sr-history-timeline [requestId]="req.id" [refreshKey]="refreshKey()" />
+      }
+    }
+  </div>
+  <amc-request-action-host (done)="refresh()" />
+}

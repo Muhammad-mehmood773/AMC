@@ -41,7 +41,7 @@ export function agreementColumns(): DataColumn<AgreementSummary>[] {
 
 export function serviceRequestColumns(siteName?: SiteNamer): DataColumn<ServiceRequestSummary>[] {
   return [
-    { key: 'number', label: 'Request', value: (r) => r.number, type: 'mono', sortable: true, mobile: 'hidden' },
+    { key: 'number', label: 'Request', value: (r) => r.number, type: 'mono', sortable: true, mobile: 'hidden', link: (r) => `/app/service-requests/${r.id}` },
     { key: 'subject', label: 'Subject', value: (r) => r.subject, sortable: true, mobile: 'title' },
     ...(siteName
       ? [{ key: 'site', label: 'Site', value: (r: ServiceRequestSummary) => siteName(r.siteId), link: (r: ServiceRequestSummary) => `/app/customers/sites/${r.siteId}`, visibility: 'lg' as const, mobile: 'meta' as const }]

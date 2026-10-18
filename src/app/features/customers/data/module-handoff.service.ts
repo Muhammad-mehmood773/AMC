@@ -42,6 +42,10 @@ export class ModuleHandoff {
       void this.router.navigate([action === 'Create AMC' ? '/app/amc-agreements/new' : '/app/contracts/new'], { queryParams: { customerId: context.customerId ?? null, siteId: context.siteId ?? null } });
       return;
     }
+    if (action === 'Create Service Request') {
+      void this.router.navigate(['/app/service-requests/new'], { queryParams: { customer: context.customerId ?? null, site: context.siteId ?? null } });
+      return;
+    }
     const scope = context.siteName ? `${context.customerName} · ${context.siteName}` : context.customerName;
     this.notifications.info(
       `${action} for ${scope} continues in the ${TARGET_MODULE[action]} module.`,

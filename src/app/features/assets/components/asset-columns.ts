@@ -39,7 +39,7 @@ export function assetListColumns(): DataColumn<AssetListItem>[] {
 
 export function serviceRequestColumns(): DataColumn<AssetServiceRequest>[] {
   return [
-    { key: 'number', label: 'Request', value: (r) => r.number, type: 'mono', sortable: true, mobile: 'hidden' },
+    { key: 'number', label: 'Request', value: (r) => r.number, type: 'mono', sortable: true, mobile: 'hidden', link: (r) => `/app/service-requests/${r.id}` },
     { key: 'subject', label: 'Subject', value: (r) => r.subject, sortable: true, mobile: 'title' },
     { key: 'priority', label: 'Priority', value: (r) => r.priority, type: 'badge', tone: (r) => recordTone(r.priority), sortable: true, visibility: 'md' },
     { key: 'created', label: 'Created', value: (r) => r.createdAt, type: 'datetime', sortable: true, visibility: 'lg', mobile: 'meta' },

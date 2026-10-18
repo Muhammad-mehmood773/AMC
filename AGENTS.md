@@ -61,5 +61,13 @@
   duplicates, automation (`automate`: horizon generation, work orders X days before due,
   auto-assign, overdue escalation, auto-missed — run on every read), SRS 8.26 validation and
   completion rules are in `mock/pm-engine.ts`. Rules/limits live in `data/pm.config.ts`.
+- Service Request Management (`features/service-requests`, SRS 9): requests are seeded from the
+  Customer 360 / asset service-request rows (same SR- ids) plus PM-generated, internal and
+  follow-up requests. Classification, priority scoring, coverage/SLA resolution (through the SLA
+  module's selection engine), routing, duplicate detection and automation (`runAutomation`:
+  escalations, closure reminders, auto-miss… ) live in `mock/sr-engine.ts`; lifecycle transitions,
+  SRS 9.23 business rules and 9.24 validation are enforced in `mock/mock-sr-apis.ts`. Thresholds
+  and classification/routing rules live in `data/sr.config.ts`. Customer "Create Service Request"
+  opens `/app/service-requests/new?customer=…&site=…`; the asset hand-off prefills `asset=…`.
 - Contextual help: pass `[help]` to `<amc-form-field>`; content lives in the feature's
   `data/field-help.ts`. Only add help where it explains a purpose or business rule.

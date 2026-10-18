@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { NotificationPort } from '@core/notification/notification.port';
 import type { EntitlementCheck } from '../models/coverage.model';
 
@@ -33,6 +34,7 @@ export interface AssetHandoffRequest {
 @Injectable()
 export class AssetHandoff {
   private readonly notifications = inject(NotificationPort);
+  private readonly router = inject(Router);
 
   /** Pending request shown in the entitlement-check dialog. */
   readonly request = signal<AssetHandoffRequest | null>(null);
@@ -43,6 +45,11 @@ export class AssetHandoff {
 
   /** Called by the dialog once the entitlement has been reviewed. */
   complete(request: AssetHandoffRequest, check: EntitlementCheck | null): void {
+    this.request.set(null);
+    if (request.action === 'Create Service Request') {
+      void this.router.navigate(['/app/service-requests/new'], { queryParams: { asset: request.asset.id } });
+      return;
+    }
     const scope = [request.asset.code, request.asset.name, request.asset.siteName].filter(Boolean).join(' · ');
     const coverage = !check
       ? ''
@@ -50,6 +57,5 @@ export class AssetHandoff {
         ? ` Covered by ${check.coverage?.agreementNumber ?? check.warrantyReference ?? 'warranty'}.`
         : ' Not covered — chargeable service.';
     this.notifications.info(`${request.action} for ${scope} continues in the ${TARGET_MODULE[request.action]} module.${coverage}`, request.action);
-    this.request.set(null);
   }
 }

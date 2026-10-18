@@ -17,6 +17,7 @@ export interface NavSection {
 const CUSTOMER_RESERVED = 'dashboard|contacts|sites|documents|history';
 const CONTRACT_RESERVED = 'dashboard|requests|templates|clauses|review|approvals|execution|obligations|amendments|renewals|terminations|history';
 const PM_RESERVED = 'dashboard|strategy|schedule|calendar|checklists|tasks|meters|work-orders|dispatch|due|performance';
+const SR_RESERVED = 'dashboard|identification|classification|coverage|sla|assignment|scheduling|communication|escalations|resolution|history|performance';
 const SLA_RESERVED = 'dashboard|targets|coverage|calendars|escalations|mapping|monitoring|breaches|performance';
 const AMC_RESERVED = 'dashboard|coverage|service-plan|schedule|visits|consumption|billing|suspensions|history';
 const ASSET_RESERVED = 'dashboard|hierarchy|installations|transfers|warranties|entitlements|documents|service-history|lifecycle';
@@ -162,6 +163,30 @@ export const APP_NAVIGATION: readonly NavSection[] = [
       { label: 'Assignment & Dispatch', icon: 'user-check', path: '/app/preventive-maintenance/dispatch' },
       { label: 'Due / Overdue', icon: 'alert-circle', path: '/app/preventive-maintenance/due' },
       { label: 'History & Performance', icon: 'bar-chart', path: '/app/preventive-maintenance/performance' },
+    ],
+  },
+  {
+    label: 'Service Requests',
+    icon: 'ticket',
+    items: [
+      { label: 'Dashboard', icon: 'layout-dashboard', path: '/app/service-requests/dashboard' },
+      {
+        label: 'Requests',
+        icon: 'ticket',
+        path: '/app/service-requests/list',
+        match: new RegExp(`^/app/service-requests/(list|new|(?!(${SR_RESERVED})(/|$|\\?))[^/?]+)`),
+      },
+      { label: 'Identification', icon: 'search', path: '/app/service-requests/identification' },
+      { label: 'Classification', icon: 'list', path: '/app/service-requests/classification' },
+      { label: 'Coverage', icon: 'shield-check', path: '/app/service-requests/coverage' },
+      { label: 'SLA & Priority', icon: 'clock', path: '/app/service-requests/sla' },
+      { label: 'Assignment & Routing', icon: 'user-check', path: '/app/service-requests/assignment' },
+      { label: 'Scheduling', icon: 'calendar-check', path: '/app/service-requests/scheduling' },
+      { label: 'Communication', icon: 'inbox', path: '/app/service-requests/communication' },
+      { label: 'Escalation', icon: 'alert-triangle', path: '/app/service-requests/escalations' },
+      { label: 'Resolution & Closure', icon: 'check-circle', path: '/app/service-requests/resolution' },
+      { label: 'History & Audit', icon: 'history', path: '/app/service-requests/history' },
+      { label: 'Performance', icon: 'bar-chart', path: '/app/service-requests/performance' },
     ],
   },
 ];
