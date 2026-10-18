@@ -285,6 +285,7 @@ const ICONS = {
   ],
   play: ['M6 3l14 9-14 9V3z'],
   pause: ['M6 4h4v16H6z', 'M14 4h4v16h-4z'],
+  link: ['M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

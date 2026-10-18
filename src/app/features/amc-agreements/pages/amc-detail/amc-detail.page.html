@@ -155,7 +155,7 @@
       @case ('sla') {
         <amc-panel title="SLA" icon="clock">
           <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-            <amc-detail-item label="SLA" [value]="refs.named('slas', amc.sla.slaId)" />
+            <div><dt class="text-xs font-medium text-ink-muted">SLA</dt><dd class="mt-1 text-sm">@if (amc.sla.slaId) { <a [routerLink]="['/app/sla', amc.sla.slaId]" class="amc-link">{{ refs.named('slas', amc.sla.slaId) }}</a> } @else { — }</dd></div>
             <amc-detail-item label="Response Time" [value]="amc.sla.responseHours !== null ? amc.sla.responseHours + ' hours' : null" />
             <amc-detail-item label="Resolution Time" [value]="amc.sla.resolutionHours !== null ? amc.sla.resolutionHours + ' hours' : null" />
             <amc-detail-item label="Service Priority" [value]="amc.sla.priority" />

@@ -1,0 +1,254 @@
+@if (res.error()) {
+  <div class="amc-card">
+    <amc-error-state title="SLA not found" message="This SLA could not be loaded." (retry)="res.reload()" />
+    <div class="-mt-6 pb-8 text-center"><a routerLink="/app/sla/list" class="amc-link text-sm">Back to SLAs</a></div>
+  </div>
+} @else if (!s()) {
+  <div class="amc-card space-y-3 p-5"><amc-skeleton class="h-6 w-72" /><amc-skeleton class="h-4 w-48" /></div>
+} @else {
+  @let sla = s()!;
+  @let p = perf();
+  <div class="space-y-5">
+    <amc-breadcrumbs [items]="[{ label: 'SLA Management', path: '/app/sla/dashboard' }, { label: 'List', path: '/app/sla/list' }, { label: sla.number }]" />
+
+    <header class="amc-card p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-brand"><amc-icon name="clock" [size]="24" /></span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ sla.name }}</h1>
+              <amc-status-badge [label]="sla.effectiveStatus" [tone]="statusTone[sla.effectiveStatus]" />
+            </div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+              <span class="font-mono text-[13px]">{{ sla.number }}</span><span class="text-ink-subtle">·</span><span>{{ sla.type }}</span><span class="text-ink-subtle">·</span><span class="font-mono text-[13px]">v{{ sla.version }}</span>
+              @if (sla.previousSlaId) { <span class="text-ink-subtle">·</span><a [routerLink]="['/app/sla', sla.previousSlaId]" class="hover:text-brand">Renewal of {{ sla.previousSlaId }}</a> }
+              @if (sla.renewedById) { <span class="text-ink-subtle">·</span><a [routerLink]="['/app/sla', sla.renewedById]" class="hover:text-brand">Renewed as {{ sla.renewedById }}</a> }
+            </p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Customer</dt><dd class="font-medium text-ink">@if (sla.customer.customerId) { <a [routerLink]="['/app/customers', sla.customer.customerId]" class="hover:text-brand">{{ sla.customerName }}</a> } @else { Mapped customers }</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Validity</dt><dd class="font-medium text-ink">{{ formatDate(sla.validity.effectiveDate) }} – {{ sla.validity.expiryDate ? formatDate(sla.validity.expiryDate) : 'Open-ended' }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Response / Resolution</dt><dd class="font-medium text-ink">{{ fm(sla.priorityTargets.Medium.response) }} / {{ fm(sla.priorityTargets.Medium.resolution) }} <span class="font-normal text-ink-muted">(Medium)</span></dd></div>
+              @if (sla.contractNumber) { <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Contract</dt><dd><a [routerLink]="['/app/contracts', sla.contract.contractId]" class="font-mono text-ink hover:text-brand">{{ sla.contractNumber }}</a></dd></div> }
+              @if (sla.amcNumber) { <div class="flex items-center gap-1.5"><dt class="text-ink-muted">AMC</dt><dd><a [routerLink]="['/app/amc-agreements', sla.contract.amcId]" class="font-mono text-ink hover:text-brand">{{ sla.amcNumber }}</a></dd></div> }
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          @if (['Draft', 'Pending Approval', 'Approved', 'Pending Activation'].includes(sla.effectiveStatus)) { <button type="button" class="amc-btn-secondary" (click)="onAction('activate')"><amc-icon name="play" /> Activate</button> }
+          @if (!['Expired', 'Renewed', 'Cancelled', 'Archived'].includes(sla.effectiveStatus)) {
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" (click)="onAction('assign')"><amc-icon name="link" /> Assign</button>
+            <a [routerLink]="['/app/sla', sla.id, 'edit']" class="amc-btn-primary"><amc-icon name="pencil" /> Edit</a>
+          }
+          <amc-action-menu label="Actions" [items]="menu()" (action)="onAction($event)" />
+        </div>
+      </div>
+    </header>
+
+    @if (sla.effectiveStatus === 'Suspended') {
+      <div class="flex items-center gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="alert"><amc-icon name="pause" [size]="18" class="text-warn" /><p class="flex-1 text-sm text-ink">Suspended — this SLA creates no new SLA commitments. Running clocks continue to be measured.</p><button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onAction('reactivate')">Reactivate</button></div>
+    } @else if (sla.effectiveStatus === 'Expired' || sla.effectiveStatus === 'Renewed') {
+      <div class="flex items-center gap-3 rounded-xl border border-line bg-surface-muted p-4" role="status"><amc-icon name="clock" [size]="18" class="text-ink-muted" /><p class="text-sm text-ink">This SLA is {{ sla.effectiveStatus.toLowerCase() }} and is no longer assigned to new transactions. Its performance history remains available.</p></div>
+    }
+
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="SLA KPIs">
+      <amc-kpi-card label="Covered Customers" icon="building" tone="info" [value]="sla.coverage.customers" />
+      <amc-kpi-card label="Covered Sites" icon="map-pin" tone="info" [value]="sla.coverage.sites" />
+      <amc-kpi-card label="Covered Assets" icon="box" tone="info" [value]="sla.coverage.assets" />
+      <amc-kpi-card label="Covered Services" icon="list" tone="accent" [value]="sla.coverage.services || 'All'" />
+      <amc-kpi-card label="Active Requests" icon="ticket" tone="warn" [value]="sla.activeRequests" />
+      <amc-kpi-card label="Active Work Orders" icon="wrench" tone="warn" [value]="sla.activeWorkOrders" />
+      <amc-kpi-card label="Active SLA Clocks" icon="activity" tone="brand" [value]="sla.activeClocks" />
+      <amc-kpi-card label="Response SLA Compliance" icon="check-circle" [tone]="(sla.responseCompliance ?? 100) >= 90 ? 'ok' : 'danger'" [value]="pctText(sla.responseCompliance)" />
+      <amc-kpi-card label="Resolution SLA Compliance" icon="check-circle" [tone]="(sla.resolutionCompliance ?? 100) >= 90 ? 'ok' : 'danger'" [value]="pctText(sla.resolutionCompliance)" />
+      <amc-kpi-card label="SLA Breaches" icon="alert-circle" [tone]="sla.breaches ? 'danger' : 'neutral'" [value]="sla.breaches" />
+      <amc-kpi-card label="Open Escalations" icon="alert-triangle" [tone]="sla.openEscalations ? 'warn' : 'neutral'" [value]="sla.openEscalations" />
+      <amc-kpi-card label="Average Response Time" icon="clock" [value]="fm(sla.avgResponseMinutes)" />
+      <amc-kpi-card label="Average Resolution Time" icon="clock" [value]="fm(sla.avgResolutionMinutes)" />
+      <amc-kpi-card label="SLA Compliance %" icon="shield-check" [tone]="(sla.compliance ?? 100) >= 90 ? 'ok' : 'danger'" [value]="pctText(sla.compliance)" />
+      <amc-kpi-card label="Days Remaining" icon="calendar" [tone]="sla.daysRemaining !== null && sla.daysRemaining < 60 ? 'warn' : 'neutral'" [value]="sla.daysRemaining === null ? 'Open-ended' : sla.daysRemaining < 0 ? 'Ended' : sla.daysRemaining" />
+    </section>
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" [maxVisible]="10" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <amc-panel class="xl:col-span-2" title="SLA summary" icon="clock">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <amc-detail-item label="SLA Type" [value]="sla.type" />
+              <amc-detail-item label="Approval" [value]="sla.approval" />
+              <amc-detail-item label="Parent SLA" [value]="sla.parentSlaId" />
+              <amc-detail-item label="Service Calendar" [value]="sla.calendarName" />
+              <amc-detail-item label="Service Hours" [value]="sla.serviceHours.mode" />
+              <amc-detail-item label="Escalation Policy" [value]="sla.escalation.policy + ' at ' + sla.escalation.percentage + '%'" />
+              <amc-detail-item label="Covered Request Types" [value]="sla.scope.requestTypes.join(', ')" />
+              <amc-detail-item label="Covered Work Order Types" [value]="sla.scope.workOrderTypes.join(', ')" />
+              <amc-detail-item label="Service Priority" [value]="sla.scope.servicePriority ?? 'All priorities'" />
+              <amc-detail-item label="Description" [value]="sla.description" class="col-span-2 lg:col-span-3" />
+            </dl>
+          </amc-panel>
+          <amc-panel title="Compliance trend" description="Weekly SLA compliance %" icon="trending-up" class="min-w-0">
+            <div class="px-1 pb-2"><amc-mini-chart type="bar" [labels]="trendLabels()" [values]="trendValues()" [height]="200" ariaLabel="Weekly SLA compliance" /></div>
+          </amc-panel>
+        </div>
+      }
+      @case ('contract') {
+        <amc-panel title="Contract relationship" icon="file-text">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <div><dt class="text-xs font-medium text-ink-muted">Contract</dt><dd class="mt-1 text-sm">@if (contract(); as k) { <a [routerLink]="['/app/contracts', k.id]" class="amc-link font-mono">{{ k.number }}</a> <span class="text-ink-muted">· {{ k.name }} · {{ k.status }}</span> } @else { — }</dd></div>
+            <amc-detail-item label="Contract Line" [value]="sla.contract.contractLine" />
+            <amc-detail-item label="Effective Contract Date" [value]="sla.contract.contractStart ? formatDate(sla.contract.contractStart) : null" />
+            <amc-detail-item label="Contract Expiry Date" [value]="sla.contract.contractEnd ? formatDate(sla.contract.contractEnd) : null" />
+            <amc-detail-item label="Customer Legal Entity" [value]="sla.customer.legalEntity" />
+            <amc-detail-item label="Customer Segment" [value]="sla.customer.segment" />
+            <amc-detail-item label="Account Manager" [value]="refs.userName(sla.customer.accountManagerId)" />
+            <amc-detail-item label="Contract Manager" [value]="refs.userName(sla.customer.contractManagerId)" />
+            <amc-detail-item label="SLA Value" [value]="formatCurrency(sla.commercial.value, sla.commercial.currency)" />
+            <amc-detail-item label="Billing Impact" [value]="sla.commercial.billingImpact" />
+            <amc-detail-item label="Penalty" [value]="sla.commercial.penaltyApplicable || sla.commercial.serviceCreditApplicable ? sla.commercial.penaltyPercent + '% per breach, capped at ' + sla.commercial.penaltyCapPercent + '% / month' : 'Not applicable'" />
+            <amc-detail-item label="Penalty / Credit Rules" [value]="sla.commercial.penaltyRules || sla.commercial.serviceCreditRules" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('amc') {
+        <amc-panel title="AMC" icon="shield-check">
+          @if (amc(); as a) {
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <div><dt class="text-xs font-medium text-ink-muted">AMC</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/amc-agreements', a.id]" class="amc-link font-mono">{{ a.number }}</a> <span class="text-ink-muted">· {{ a.name }}</span></dd></div>
+              <amc-detail-item label="AMC Status" [value]="a.status" />
+              <amc-detail-item label="Period" [value]="formatDate(a.startDate) + ' – ' + formatDate(a.endDate)" />
+              <amc-detail-item label="Covered Sites" [value]="a.siteIds.length" />
+            </dl>
+          } @else { <p class="text-sm text-ink-muted">This SLA is not linked to an AMC.</p> }
+        </amc-panel>
+      }
+      @case ('customers') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="customerRows()" [columns]="scopeColumns" [trackBy]="trackById" emptyIcon="building" emptyTitle="No customers" emptyMessage="Map or cover customers to apply this SLA." /></section> }
+      @case ('sites') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="siteRows()" [columns]="scopeColumns" [trackBy]="trackById" emptyIcon="map-pin" emptyTitle="No site restriction" emptyMessage="The SLA applies to all sites of the covered customers." /></section> }
+      @case ('assets') { <section class="amc-card overflow-hidden"><amc-data-table tableId="sla-assets" [rows]="assetRows()" [columns]="scopeColumns" [trackBy]="trackById" emptyIcon="box" emptyTitle="No asset restriction" emptyMessage="The SLA applies to all assets in scope." /></section> }
+      @case ('services') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="serviceRows()" [columns]="scopeColumns" [trackBy]="trackById" emptyIcon="list" emptyTitle="All services" emptyMessage="No service restriction — the SLA applies to all services." /></section> }
+      @case ('priorities') {
+        <amc-panel title="Priority targets" icon="layers" [padded]="false">
+          <table class="w-full text-sm">
+            <thead class="bg-surface-muted text-xs text-ink-muted"><tr><th class="px-4 py-2 text-left font-medium">Priority</th><th class="px-4 py-2 text-left font-medium">Response Target</th><th class="px-4 py-2 text-left font-medium">Resolution Target</th></tr></thead>
+            <tbody>@for (pr of priorities; track pr) { <tr class="border-t border-line"><td class="px-4 py-2.5 font-medium">{{ pr }}</td><td class="px-4 py-2.5 tabular-nums">{{ fm(sla.priorityTargets[pr].response) }}</td><td class="px-4 py-2.5 tabular-nums">{{ fm(sla.priorityTargets[pr].resolution) }}</td></tr> }</tbody>
+          </table>
+        </amc-panel>
+      }
+      @case ('targets') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm text-ink-muted">Measurable commitments with clock events and thresholds.</p><a routerLink="/app/sla/targets" [queryParams]="{ slaId: sla.id }" class="amc-btn-secondary amc-btn-sm">Modify Targets</a></div>
+          <amc-data-table [rows]="targets()" [columns]="targetCols" [trackBy]="trackById" emptyIcon="clock" emptyTitle="No targets" emptyMessage="Targets must be defined before activation." />
+        </section>
+      }
+      @case ('hours') {
+        <amc-panel title="Service hours" icon="calendar-check">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <amc-detail-item label="Service Calendar" [value]="sla.calendarName" />
+            <amc-detail-item label="Service Hours" [value]="sla.serviceHours.mode" />
+            <amc-detail-item label="24x7 Support" [value]="sla.serviceHours.mode === '24x7' ? 'Yes' : 'No'" />
+            <amc-detail-item label="After-Hours Support" [value]="sla.serviceHours.afterHoursSupport ? 'Yes' : 'No'" />
+            <amc-detail-item label="Holiday Calendar" [value]="sla.serviceHours.holidayCalendar" />
+            <amc-detail-item label="Weekend Rules" [value]="sla.serviceHours.weekendRules" />
+            <amc-detail-item label="Response Calendar" [value]="refs.calendarName(sla.response.calendarId)" />
+            <amc-detail-item label="Resolution Calendar" [value]="refs.calendarName(sla.resolution.calendarId)" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('calendar') {
+        @if (calendar(); as cal) {
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <amc-panel [title]="cal.name" [description]="cal.type + ' · ' + cal.timeZone" icon="calendar" [padded]="false">
+              <a panelActions routerLink="/app/sla/calendars" class="amc-link text-xs">Manage calendars</a>
+              <ul class="divide-y divide-line">
+                @for (d of cal.days; track $index) { <li class="flex items-center justify-between px-4 py-2 text-sm"><span class="font-medium">{{ days[$index] }}</span><span class="tabular-nums" [class]="d.working ? 'text-ink' : 'text-ink-subtle'">{{ d.working ? d.start + ' – ' + d.end : 'Non-working' }}</span></li> }
+              </ul>
+              <p class="border-t border-line px-4 py-2 text-xs text-ink-muted">{{ cal.breakStart ? 'Break ' + cal.breakStart + '–' + cal.breakEnd + ' · ' : '' }}{{ cal.weekendRules }}</p>
+            </amc-panel>
+            <amc-panel [title]="cal.holidayCalendar" description="Holidays excluded from SLA time" icon="calendar" [padded]="false">
+              <ul class="max-h-96 divide-y divide-line overflow-y-auto">
+                @for (h of holidays(); track h.id) { <li class="flex items-center justify-between px-4 py-2 text-sm"><span>{{ h.name }}</span><span class="text-xs tabular-nums text-ink-muted">{{ formatDate(h.date) }}{{ h.working ? ' · working' : '' }}</span></li> } @empty { <li class="p-6 text-center text-sm text-ink-muted">No holidays — 24x7 calendars ignore holidays.</li> }
+              </ul>
+            </amc-panel>
+          </div>
+        }
+      }
+      @case ('escalations') {
+        <div class="space-y-5">
+          <section class="amc-card overflow-hidden">
+            <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm font-medium text-ink">Escalation rules</p><a routerLink="/app/sla/escalations" [queryParams]="{ slaId: sla.id }" class="amc-btn-secondary amc-btn-sm">Configure Escalation</a></div>
+            <amc-data-table [rows]="rules()" [columns]="ruleCols" [trackBy]="trackById" emptyIcon="alert-triangle" emptyTitle="No escalation rules" emptyMessage="Configure escalation levels and thresholds." />
+          </section>
+          <section class="amc-card overflow-hidden">
+            <p class="border-b border-line px-4 py-3 text-sm font-medium text-ink sm:px-5">Triggered escalations</p>
+            <amc-data-table tableId="sla-events" [rows]="events()" [columns]="eventCols" [trackBy]="trackById" emptyIcon="check-circle" emptyTitle="No escalations" emptyMessage="No escalations have been triggered." />
+          </section>
+          <section class="amc-card overflow-hidden">
+            <p class="border-b border-line px-4 py-3 text-sm font-medium text-ink sm:px-5">Assignment mappings</p>
+            <amc-data-table [rows]="mappings()" [columns]="mappingCols" [trackBy]="trackById" emptyIcon="link" emptyTitle="Not mapped" emptyMessage="Map this SLA so it is assigned automatically." />
+          </section>
+        </div>
+      }
+      @case ('requests') { <section class="amc-card overflow-hidden"><amc-data-table tableId="sla-requests" [rows]="requests()" [columns]="txColumns" [trackBy]="trackById" emptyIcon="ticket" emptyTitle="No service requests" emptyMessage="Service requests measured against this SLA appear here." /></section> }
+      @case ('work-orders') { <section class="amc-card overflow-hidden"><amc-data-table tableId="sla-wos" [rows]="workOrders()" [columns]="txColumns" [trackBy]="trackById" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Work orders measured against this SLA appear here." /></section> }
+      @case ('clocks') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm text-ink-muted">Every clock keeps the target snapshot it started with.</p><a routerLink="/app/sla/monitoring" [queryParams]="{ slaId: sla.id }" class="amc-btn-secondary amc-btn-sm">Open monitoring</a></div>
+          <amc-data-table tableId="sla-clocks" [rows]="clocks()" [columns]="clockCols" [trackBy]="trackById" emptyIcon="clock" emptyTitle="No SLA clocks" emptyMessage="Clocks start when the SLA is assigned to a transaction." />
+        </section>
+      }
+      @case ('breaches') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm text-ink-muted">Breach records preserve the original target and actual times.</p><a routerLink="/app/sla/breaches" [queryParams]="{ slaId: sla.id }" class="amc-btn-secondary amc-btn-sm">Manage breaches</a></div>
+          <amc-data-table tableId="sla-breaches" [rows]="breaches()" [columns]="breachCols" [trackBy]="trackById" emptyIcon="check-circle" emptyTitle="No breaches" emptyMessage="This SLA has no recorded breaches." />
+        </section>
+      }
+      @case ('visits') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="visits()" [columns]="clockCols" [trackBy]="trackById" emptyIcon="map-pin" emptyTitle="No service visits" emptyMessage="On-site arrival commitments of work orders appear here." /></section> }
+      @case ('performance') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <amc-panel class="xl:col-span-2" title="SLA performance" description="Calculated from actual clock data" icon="bar-chart">
+            @if (p) {
+              <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+                <amc-detail-item label="Total Requests" [value]="p.requests" />
+                <amc-detail-item label="Total Work Orders" [value]="p.workOrders" />
+                <amc-detail-item label="SLA Met" [value]="p.met" />
+                <amc-detail-item label="SLA Breached" [value]="p.breached" />
+                <amc-detail-item label="Response SLA Met / Breached" [value]="p.responseMet + ' / ' + p.responseBreached" />
+                <amc-detail-item label="Resolution SLA Met / Breached" [value]="p.resolutionMet + ' / ' + p.resolutionBreached" />
+                <amc-detail-item label="Average Response Time" [value]="fm(p.avgResponseMinutes)" />
+                <amc-detail-item label="Average Resolution Time" [value]="fm(p.avgResolutionMinutes)" />
+                <amc-detail-item label="Average Breach Duration" [value]="fm(p.avgBreachMinutes)" />
+                <amc-detail-item label="SLA Compliance %" [value]="pctText(p.compliance)" />
+                <amc-detail-item label="Escalation Count" [value]="p.escalations" />
+                <amc-detail-item label="Repeated Breach Count" [value]="p.repeatedBreaches" />
+                <amc-detail-item label="First-Time Resolution %" [value]="pctText(p.firstTimeResolution)" />
+                <amc-detail-item label="On-Time Resolution %" [value]="pctText(p.onTimeResolution)" />
+                <amc-detail-item label="SLA Availability %" [value]="pctText(p.availability)" />
+              </dl>
+            } @else { <amc-skeleton class="h-32 w-full" /> }
+          </amc-panel>
+          <amc-panel title="Version history" description="SLA changes are version-controlled" icon="layers" [padded]="false">
+            <ol class="divide-y divide-line">
+              @for (ver of versions(); track ver.version + ver.createdAt) {
+                <li class="px-4 py-3 text-sm"><p class="font-medium text-ink"><span class="font-mono">v{{ ver.version }}</span> · {{ ver.summary }}</p><p class="text-xs text-ink-muted">{{ ver.createdBy }} · {{ formatDateTime(ver.createdAt) }} · Medium {{ fm(ver.snapshot.Medium.response) }} / {{ fm(ver.snapshot.Medium.resolution) }}</p></li>
+              }
+            </ol>
+          </amc-panel>
+        </div>
+      }
+      @case ('documents') {
+        <amc-panel title="Documents" icon="paperclip" [padded]="false">
+          <div panelActions class="flex items-center gap-2">
+            <amc-select inputId="sd-doctype" class="w-48" [options]="docTypeOptions" [(value)]="uploadType" ariaLabel="Document type" />
+            <label for="sd-files" class="amc-btn-secondary amc-btn-sm cursor-pointer"><amc-icon name="upload" [size]="14" /> Upload<input id="sd-files" type="file" multiple class="sr-only" (change)="upload($event)" /></label>
+          </div>
+          <ul class="divide-y divide-line">
+            @for (d of sla.documents; track d.id) { <li class="flex items-center gap-3 px-4 py-3 sm:px-5"><amc-icon name="paperclip" class="text-ink-subtle" /><span class="min-w-0 flex-1 truncate text-sm">{{ d.name }}</span><span class="text-xs text-ink-muted">{{ d.type }} · {{ formatFileSize(d.size) }} · {{ d.uploadedBy }} · {{ formatDate(d.uploadedAt) }}</span></li> } @empty { <li class="p-6 text-center text-sm text-ink-muted">No documents.</li> }
+          </ul>
+        </amc-panel>
+      }
+      @case ('history') { <amc-sla-history-timeline [slaId]="sla.id" [refreshKey]="refreshKey()" /> }
+    }
+  </div>
+}
+<amc-sla-action-host (done)="refresh()" />

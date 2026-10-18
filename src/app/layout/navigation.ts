@@ -16,6 +16,8 @@ export interface NavSection {
 
 const CUSTOMER_RESERVED = 'dashboard|contacts|sites|documents|history';
 const CONTRACT_RESERVED = 'dashboard|requests|templates|clauses|review|approvals|execution|obligations|amendments|renewals|terminations|history';
+const PM_RESERVED = 'dashboard|strategy|schedule|calendar|checklists|tasks|meters|work-orders|dispatch|due|performance';
+const SLA_RESERVED = 'dashboard|targets|coverage|calendars|escalations|mapping|monitoring|breaches|performance';
 const AMC_RESERVED = 'dashboard|coverage|service-plan|schedule|visits|consumption|billing|suspensions|history';
 const ASSET_RESERVED = 'dashboard|hierarchy|installations|transfers|warranties|entitlements|documents|service-history|lifecycle';
 
@@ -116,6 +118,50 @@ export const APP_NAVIGATION: readonly NavSection[] = [
       { label: 'Billing Schedule', icon: 'receipt', path: '/app/amc-agreements/billing' },
       { label: 'Suspension / Termination', icon: 'pause', path: '/app/amc-agreements/suspensions' },
       { label: 'History & Audit', icon: 'history', path: '/app/amc-agreements/history' },
+    ],
+  },
+  {
+    label: 'SLA Management',
+    icon: 'clock',
+    items: [
+      { label: 'Dashboard', icon: 'layout-dashboard', path: '/app/sla/dashboard' },
+      {
+        label: 'SLAs',
+        icon: 'clock',
+        path: '/app/sla/list',
+        match: new RegExp(`^/app/sla/(list|new|(?!(${SLA_RESERVED})(/|$|\\?))[^/?]+)`),
+      },
+      { label: 'Targets', icon: 'layers', path: '/app/sla/targets' },
+      { label: 'Coverage', icon: 'shield-check', path: '/app/sla/coverage' },
+      { label: 'Calendars', icon: 'calendar', path: '/app/sla/calendars' },
+      { label: 'Escalation Rules', icon: 'alert-triangle', path: '/app/sla/escalations' },
+      { label: 'Assignment / Mapping', icon: 'link', path: '/app/sla/mapping' },
+      { label: 'Monitoring', icon: 'activity', path: '/app/sla/monitoring' },
+      { label: 'Breaches', icon: 'alert-circle', path: '/app/sla/breaches' },
+      { label: 'Performance & History', icon: 'bar-chart', path: '/app/sla/performance' },
+    ],
+  },
+  {
+    label: 'Preventive Maintenance',
+    icon: 'calendar-check',
+    items: [
+      { label: 'Dashboard', icon: 'layout-dashboard', path: '/app/preventive-maintenance/dashboard' },
+      {
+        label: 'Maintenance Plans',
+        icon: 'calendar-check',
+        path: '/app/preventive-maintenance/list',
+        match: new RegExp(`^/app/preventive-maintenance/(list|new|(?!(${PM_RESERVED})(/|$|\\?))[^/?]+)`),
+      },
+      { label: 'Strategy & Frequency', icon: 'refresh', path: '/app/preventive-maintenance/strategy' },
+      { label: 'Recurring Schedule', icon: 'calendar', path: '/app/preventive-maintenance/schedule' },
+      { label: 'Calendar', icon: 'calendar', path: '/app/preventive-maintenance/calendar' },
+      { label: 'Checklists', icon: 'clipboard-list', path: '/app/preventive-maintenance/checklists' },
+      { label: 'Tasks & Procedures', icon: 'list', path: '/app/preventive-maintenance/tasks' },
+      { label: 'Meter / Condition Rules', icon: 'activity', path: '/app/preventive-maintenance/meters' },
+      { label: 'Work Order Generation', icon: 'wrench', path: '/app/preventive-maintenance/work-orders' },
+      { label: 'Assignment & Dispatch', icon: 'user-check', path: '/app/preventive-maintenance/dispatch' },
+      { label: 'Due / Overdue', icon: 'alert-circle', path: '/app/preventive-maintenance/due' },
+      { label: 'History & Performance', icon: 'bar-chart', path: '/app/preventive-maintenance/performance' },
     ],
   },
 ];

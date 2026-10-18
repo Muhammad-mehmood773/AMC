@@ -1,0 +1,290 @@
+@if (res.error()) {
+  <div class="amc-card">
+    <amc-error-state title="Maintenance plan not found" message="This plan could not be loaded." (retry)="res.reload()" />
+    <div class="-mt-6 pb-8 text-center"><a routerLink="/app/preventive-maintenance/list" class="amc-link text-sm">Back to plans</a></div>
+  </div>
+} @else if (!p()) {
+  <div class="amc-card space-y-3 p-5"><amc-skeleton class="h-6 w-72" /><amc-skeleton class="h-4 w-48" /></div>
+} @else {
+  @let plan = p()!;
+  @let k = plan.kpis;
+  <div class="space-y-5">
+    <amc-breadcrumbs [items]="[{ label: 'Preventive Maintenance', path: '/app/preventive-maintenance/dashboard' }, { label: 'Plans', path: '/app/preventive-maintenance/list' }, { label: plan.number }]" />
+
+    <header class="amc-card p-4 sm:p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-brand"><amc-icon name="calendar-check" [size]="24" /></span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1"><h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ plan.name }}</h1><amc-status-badge [label]="plan.status" [tone]="statusTone[plan.status]" /></div>
+            <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted"><span class="font-mono text-[13px]">{{ plan.number }}</span><span class="text-ink-subtle">·</span><span>{{ plan.maintenanceType }}</span><span class="text-ink-subtle">·</span><span>{{ plan.frequencyLabel }}</span><span class="text-ink-subtle">·</span><span class="font-mono text-[13px]">v{{ plan.version }}</span></p>
+            <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Customer</dt><dd><a [routerLink]="['/app/customers', plan.location.customerId]" class="font-medium text-ink hover:text-brand">{{ plan.customerName }}</a></dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Site</dt><dd class="font-medium text-ink">{{ plan.siteName }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Asset</dt><dd class="font-medium text-ink">@if (plan.assetIds.length === 1) { <a [routerLink]="['/app/assets', plan.assetIds[0]]" class="hover:text-brand">{{ plan.assetNames[0] }}</a> } @else { {{ plan.assetIds.length }} assets }</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Next Due</dt><dd class="font-medium text-ink">{{ plan.nextDueDate ? formatDate(plan.nextDueDate) : '—' }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Next Scheduled</dt><dd class="font-medium text-ink">{{ plan.nextScheduledDate ? formatDate(plan.nextScheduledDate) : '—' }}</dd></div>
+              <div class="flex items-center gap-1.5"><dt class="text-ink-muted">Team</dt><dd class="font-medium text-ink">{{ plan.resources.team }}{{ plan.resources.technician ? ' · ' + plan.resources.technician : '' }}</dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+          @if (plan.status === 'Active') {
+            <button type="button" class="amc-btn-secondary" (click)="onPlanAction('schedule')"><amc-icon name="calendar-check" /> Schedule</button>
+            <button type="button" class="amc-btn-secondary hidden sm:inline-flex" (click)="act('assign')"><amc-icon name="user-check" /> Assign</button>
+          }
+          @if (['Draft', 'Under Review', 'Approved', 'Active', 'Suspended'].includes(plan.status)) { <a [routerLink]="['/app/preventive-maintenance', plan.id, 'edit']" class="amc-btn-primary"><amc-icon name="pencil" /> Edit</a> }
+          <amc-action-menu label="Actions" [items]="menu()" (action)="onPlanAction($event)" />
+        </div>
+      </div>
+    </header>
+
+    @if (plan.status === 'Suspended') {
+      <div class="flex items-center gap-3 rounded-xl border border-warn/30 bg-warn-subtle p-4" role="alert"><amc-icon name="pause" [size]="18" class="text-warn" /><p class="flex-1 text-sm text-ink">Suspended — no new maintenance work is generated.</p><button type="button" class="amc-btn-secondary amc-btn-sm" (click)="onPlanAction('resume')">Resume</button></div>
+    }
+
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Plan KPIs">
+      <amc-kpi-card label="Total Planned" icon="calendar" tone="brand" [value]="k.planned" />
+      <amc-kpi-card label="Completed" icon="check-circle" tone="ok" [value]="k.completed" />
+      <amc-kpi-card label="Pending" icon="clock" tone="info" [value]="k.pending" />
+      <amc-kpi-card label="Due" icon="clock" tone="warn" [value]="k.due" />
+      <amc-kpi-card label="Overdue" icon="alert-circle" [tone]="k.overdue ? 'danger' : 'neutral'" [value]="k.overdue" />
+      <amc-kpi-card label="Missed" icon="x" [tone]="k.missed ? 'danger' : 'neutral'" [value]="k.missed" />
+      <amc-kpi-card label="Rescheduled" icon="calendar" tone="warn" [value]="k.rescheduled" />
+      <amc-kpi-card label="Generated Work Orders" icon="wrench" tone="accent" [value]="k.workOrders" />
+      <amc-kpi-card label="Completed Work Orders" icon="check-circle" tone="ok" [value]="k.completedWorkOrders" />
+      <amc-kpi-card label="Parts Used" icon="box" [value]="k.partsUsed" />
+      <amc-kpi-card label="Maintenance Cost" icon="wallet" tone="accent" [value]="formatCurrency(k.cost, 'SAR', true)" />
+      <amc-kpi-card label="Avg Completion Time" icon="clock" [value]="fd(k.avgCompletionMinutes)" />
+      <amc-kpi-card label="Maintenance Compliance %" icon="shield-check" [tone]="(k.compliance ?? 100) >= 90 ? 'ok' : 'danger'" [value]="pct(k.compliance)" />
+    </section>
+
+    <amc-tabs [items]="tabs()" [active]="activeTab()" [maxVisible]="10" (activeChange)="selectTab($event)" />
+
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <amc-panel class="xl:col-span-2" title="Plan summary" icon="calendar-check">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <amc-detail-item label="Strategy" [value]="plan.strategy.strategy" />
+              <amc-detail-item label="Frequency" [value]="plan.frequencyLabel" />
+              <amc-detail-item label="Validity" [value]="formatDate(plan.frequency.startDate) + ' – ' + (plan.frequency.endDate ? formatDate(plan.frequency.endDate) : 'open-ended')" />
+              <amc-detail-item label="Lead Time / Grace" [value]="plan.frequency.leadTimeDays + ' / ' + plan.frequency.graceDays + ' days'" />
+              <amc-detail-item label="Maintenance Window" [value]="plan.scheduling.window" />
+              <amc-detail-item label="Holiday Handling" [value]="plan.scheduling.holidayHandling" />
+              <amc-detail-item label="Required Skill" [value]="plan.resources.skill" />
+              <amc-detail-item label="Certification" [value]="plan.resources.certification" />
+              <amc-detail-item label="Work Order Automation" [value]="plan.automation.autoGenerate ? plan.automation.leadDays + ' days before due' + (plan.automation.autoAssign ? ' · auto-assign' : '') + (plan.automation.autoDispatch ? ' · auto-dispatch' : '') : 'Manual'" />
+              <amc-detail-item label="Last Completed" [value]="plan.lastCompletedDate ? formatDate(plan.lastCompletedDate) : null" />
+              <amc-detail-item label="Approval" [value]="plan.approval" />
+              <amc-detail-item label="Description" [value]="plan.description" class="col-span-2 lg:col-span-3" />
+            </dl>
+          </amc-panel>
+          <amc-panel title="Upcoming events" icon="calendar" [padded]="false">
+            <ul class="divide-y divide-line">
+              @for (o of occurrences().filter(isOpen).slice(0, 6); track o.id) {
+                <li class="flex items-center gap-3 px-4 py-2.5"><div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-ink">{{ formatDate(o.scheduledDate) }}</p><p class="truncate text-xs text-ink-muted">{{ o.assetName }}</p></div><amc-status-badge [label]="o.effectiveStatus" [tone]="occTone[o.effectiveStatus]" /></li>
+              } @empty { <li class="p-6 text-center text-sm text-ink-muted">No open events.</li> }
+            </ul>
+          </amc-panel>
+        </div>
+      }
+      @case ('customer') {
+        <amc-panel title="Customer" icon="building">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <div><dt class="text-xs font-medium text-ink-muted">Customer</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/customers', plan.location.customerId]" class="amc-link">{{ plan.customerName }}</a></dd></div>
+            <amc-detail-item label="Customer Code" [value]="customer()?.code" />
+            <amc-detail-item label="Legal Entity" [value]="plan.location.legalEntity" />
+            <amc-detail-item label="Service Region" [value]="plan.location.region" />
+            <amc-detail-item label="Customer Notifications" [value]="plan.notifications.customer ? 'Enabled' : 'Disabled'" />
+            <amc-detail-item label="Customer Notes" [value]="plan.notes.customer" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('site') {
+        <amc-panel title="Site" icon="map-pin">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <div><dt class="text-xs font-medium text-ink-muted">Site</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/customers/sites', plan.location.siteId]" class="amc-link">{{ plan.siteName }}</a></dd></div>
+            <amc-detail-item label="City" [value]="site()?.city" />
+            <amc-detail-item label="Region" [value]="site()?.region" />
+            <amc-detail-item label="Building" [value]="plan.location.building" />
+            <amc-detail-item label="Floor" [value]="plan.location.floor" />
+            <amc-detail-item label="Area" [value]="plan.location.area" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('asset') {
+        <amc-panel title="Assets in scope" icon="box" [padded]="false">
+          <ul class="divide-y divide-line">
+            @for (a of assets(); track a!.id) {
+              <li class="grid grid-cols-2 gap-3 px-4 py-3 text-sm sm:grid-cols-5 sm:px-5">
+                <div class="col-span-2"><a [routerLink]="['/app/assets', a!.id]" class="amc-link font-medium">{{ a!.id }} · {{ a!.name }}</a><p class="text-xs text-ink-muted">{{ a!.category }} · {{ a!.type }}</p></div>
+                <div><p class="text-xs text-ink-muted">Manufacturer / Model</p><p>{{ a!.manufacturer }} {{ a!.model }}</p></div>
+                <div><p class="text-xs text-ink-muted">Serial / Criticality</p><p class="font-mono text-xs">{{ a!.serialNumber }}</p><p class="text-xs">{{ a!.criticality }}</p></div>
+                <div><p class="text-xs text-ink-muted">Installed / Status</p><p>{{ a!.installationDate ? formatDate(a!.installationDate) : '—' }} · {{ a!.status }}</p></div>
+              </li>
+            }
+          </ul>
+        </amc-panel>
+      }
+      @case ('contract') {
+        <amc-panel title="Contract" icon="file-text">
+          @if (contract(); as c) {
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <div><dt class="text-xs font-medium text-ink-muted">Contract</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/contracts', c.id]" class="amc-link font-mono">{{ c.number }}</a> <span class="text-ink-muted">· {{ c.name }}</span></dd></div>
+              <amc-detail-item label="Status" [value]="c.status" />
+              <amc-detail-item label="End Date" [value]="c.endDate ? formatDate(c.endDate) : null" />
+              <amc-detail-item label="Service" [value]="plan.serviceName" />
+              <amc-detail-item label="Covered Service" [value]="plan.service.coveredService ? 'Yes' : 'No'" />
+              <amc-detail-item label="Maintenance Entitlement" [value]="plan.service.entitlement" />
+            </dl>
+          } @else { <p class="text-sm text-ink-muted">This plan is not linked to a contract.</p> }
+        </amc-panel>
+      }
+      @case ('amc') {
+        <amc-panel title="AMC" icon="shield-check">
+          @if (amc(); as a) {
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <div><dt class="text-xs font-medium text-ink-muted">AMC</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/amc-agreements', a.id]" class="amc-link font-mono">{{ a.number }}</a> <span class="text-ink-muted">· {{ a.name }}</span></dd></div>
+              <amc-detail-item label="AMC Status" [value]="a.status" />
+              <amc-detail-item label="Period" [value]="formatDate(a.startDate) + ' – ' + formatDate(a.endDate)" />
+              <amc-detail-item label="Covered Assets" [value]="a.assetIds.length" />
+              <amc-detail-item label="Plan Assets Covered" [value]="plan.assetIds.filter(inAmc).length + ' of ' + plan.assetIds.length" />
+            </dl>
+            <p class="mt-3 text-xs text-ink-muted">Entitlement is validated before every maintenance event; events after the AMC end date cannot be started.</p>
+          } @else { <p class="text-sm text-ink-muted">This plan is not performed under an AMC.</p> }
+        </amc-panel>
+      }
+      @case ('sla') {
+        <amc-panel title="SLA" icon="clock">
+          @if (sla(); as s) {
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+              <div><dt class="text-xs font-medium text-ink-muted">SLA</dt><dd class="mt-1 text-sm"><a [routerLink]="['/app/sla', s.id]" class="amc-link">{{ s.name }}</a></dd></div>
+              <amc-detail-item label="Response / Resolution" [value]="s.responseHours + 'h / ' + s.resolutionHours + 'h'" />
+              <amc-detail-item label="Applies To" value="Corrective work raised from findings; preventive events follow the plan schedule." />
+            </dl>
+          } @else { <p class="text-sm text-ink-muted">No SLA governs this plan.</p> }
+        </amc-panel>
+      }
+      @case ('strategy') {
+        <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <amc-panel title="Maintenance strategy & frequency" icon="layers">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <amc-detail-item label="Strategy" [value]="plan.strategy.strategy" />
+              <amc-detail-item label="Maintenance Type" [value]="plan.maintenanceType" />
+              <amc-detail-item label="Frequency Type" [value]="plan.frequency.type" />
+              <amc-detail-item label="Frequency" [value]="plan.frequencyLabel" />
+              <amc-detail-item label="Calendar Rule" [value]="plan.frequency.calendarRule" />
+              <amc-detail-item label="First / Next Due Date" [value]="formatDate(plan.frequency.startDate) + ' / ' + (plan.nextDueDate ? formatDate(plan.nextDueDate) : '—')" />
+              <amc-detail-item label="Grace Period" [value]="plan.frequency.graceDays + ' days'" />
+              <amc-detail-item label="Lead Time" [value]="plan.frequency.leadTimeDays + ' days'" />
+              <amc-detail-item label="Effective Since" [value]="formatDate(plan.frequency.effectiveDate)" />
+              <amc-detail-item label="Preventive / Recurring" [value]="(plan.strategy.preventive ? 'Preventive' : '—') + ' · ' + (plan.strategy.recurring ? 'Recurring' : 'One-off')" />
+            </dl>
+          </amc-panel>
+          <amc-panel title="Version history" description="Frequency changes are version-controlled" icon="history" [padded]="false">
+            <ol class="divide-y divide-line">
+              @for (ver of versions(); track ver.version + ver.createdAt) { <li class="px-4 py-3 text-sm"><p class="font-medium text-ink"><span class="font-mono">v{{ ver.version }}</span> · {{ ver.summary }}</p><p class="text-xs text-ink-muted">{{ ver.createdBy }} · {{ formatDateTime(ver.createdAt) }} · {{ ver.frequency }}</p></li> }
+            </ol>
+          </amc-panel>
+        </div>
+      }
+      @case ('schedule') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm text-ink-muted">Every event keeps the rule that generated it and its original planned date.</p><a routerLink="/app/preventive-maintenance/schedule" [queryParams]="{ planId: plan.id }" class="amc-btn-secondary amc-btn-sm">Open schedule</a></div>
+          <amc-data-table tableId="pm-plan-schedule" [rows]="occurrences()" [columns]="occCols" [trackBy]="trackById" [actions]="occActions" [initialPageSize]="25" emptyIcon="calendar" emptyTitle="No events" emptyMessage="Activate the plan to generate the schedule." (action)="onOccurrence($event)" />
+        </section>
+      }
+      @case ('calendar') {
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (g of upcomingByMonth(); track g.month) {
+            <amc-panel [title]="g.month" [padded]="false">
+              <ul class="divide-y divide-line">
+                @for (o of g.rows; track o.id) { <li class="flex items-center gap-2 px-4 py-2 text-sm"><span class="w-16 shrink-0 tabular-nums text-ink-muted">{{ days[dayOf(o.scheduledDate)] }} {{ o.scheduledDate.slice(8) }}</span><span class="min-w-0 flex-1 truncate">{{ o.assetName }}</span><amc-status-badge [label]="o.effectiveStatus" [tone]="occTone[o.effectiveStatus]" /></li> }
+              </ul>
+            </amc-panel>
+          } @empty { <p class="text-sm text-ink-muted">No scheduled events.</p> }
+        </div>
+      }
+      @case ('checklist') {
+        <amc-panel [title]="checklist()?.name ?? 'No checklist'" [description]="checklist() ? checklist()!.number + ' · v' + checklist()!.version : ''" icon="clipboard-list" [padded]="false">
+          <a panelActions routerLink="/app/preventive-maintenance/checklists" class="amc-link text-xs">Manage checklists</a>
+          <ol class="divide-y divide-line">
+            @for (it of checklist()?.items ?? []; track it.id) {
+              <li class="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm"><span class="w-6 tabular-nums text-ink-muted">{{ it.sequence }}</span><span class="min-w-0 flex-1">{{ it.task }}@if (it.required) { <span class="text-danger"> *</span> }</span><span class="text-xs text-ink-muted">{{ it.type }}{{ it.unit ? ' · ' + it.unit : '' }}{{ it.min !== null || it.max !== null ? ' · ' + (it.min ?? '—') + '–' + (it.max ?? '—') : '' }}{{ it.expected ? ' · expect ' + it.expected : '' }}</span></li>
+            } @empty { <li class="p-6 text-center text-sm text-ink-muted">Assign a checklist on the plan form.</li> }
+          </ol>
+        </amc-panel>
+      }
+      @case ('tasks') {
+        <amc-panel title="Tasks & procedure" description="Performed in sequence" icon="list" [padded]="false">
+          <a panelActions routerLink="/app/preventive-maintenance/tasks" class="amc-link text-xs">Manage tasks</a>
+          <ol class="divide-y divide-line">
+            @for (t of tasks(); track t.id; let idx = $index) {
+              <li class="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-brand-subtle text-xs font-semibold text-brand">{{ idx + 1 }}</span><span class="min-w-0 flex-1 font-medium">{{ t.name }}</span><span class="text-xs text-ink-muted">{{ t.type }} · {{ fd(t.durationMinutes) }}{{ t.dependsOnName ? ' · after ' + t.dependsOnName : '' }}</span></li>
+            } @empty { <li class="p-6 text-center text-sm text-ink-muted">No tasks assigned.</li> }
+          </ol>
+          <dl class="grid grid-cols-1 gap-3 border-t border-line p-4 text-sm sm:grid-cols-2">
+            <amc-detail-item label="Standard Procedure" [value]="plan.procedure.standardProcedure" />
+            <amc-detail-item label="Safety Instructions" [value]="plan.procedure.safety" />
+            <amc-detail-item label="Required Measurements" [value]="plan.procedure.measurements" />
+            <amc-detail-item label="Acceptance Criteria" [value]="plan.procedure.acceptance" />
+          </dl>
+        </amc-panel>
+      }
+      @case ('work-orders') { <section class="amc-card overflow-hidden"><amc-data-table tableId="pm-plan-wos" [rows]="workOrders()" [columns]="woCols" [trackBy]="trackById" [initialPageSize]="25" emptyIcon="wrench" emptyTitle="No work orders" emptyMessage="Work orders are generated before each due date." /></section> }
+      @case ('visits') { <section class="amc-card overflow-hidden"><amc-data-table tableId="pm-plan-visits" [rows]="visits()" [columns]="visitCols" [trackBy]="trackById" emptyIcon="map-pin" emptyTitle="No service visits" emptyMessage="Completed maintenance visits appear here." /></section> }
+      @case ('parts') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="partsOnly()" [columns]="partCols" [trackBy]="trackByPart" emptyIcon="box" emptyTitle="No parts" emptyMessage="No parts are required or used on this plan." /></section> }
+      @case ('consumables') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="consumables()" [columns]="partCols" [trackBy]="trackByPart" emptyIcon="box" emptyTitle="No consumables" emptyMessage="No consumables are required or used on this plan." /></section> }
+      @case ('meters') {
+        <section class="amc-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5"><p class="text-sm text-ink-muted">Readings trigger maintenance when the next maintenance reading is reached.</p><a routerLink="/app/preventive-maintenance/meters" [queryParams]="{ planId: plan.id }" class="amc-btn-secondary amc-btn-sm">Record reading</a></div>
+          <amc-data-table [rows]="meters()" [columns]="meterCols" [trackBy]="trackById" emptyIcon="activity" emptyTitle="No meter rules" emptyMessage="This plan is not meter-based." />
+        </section>
+      }
+      @case ('conditions') { <section class="amc-card overflow-hidden"><amc-data-table [rows]="conditions()" [columns]="meterCols" [trackBy]="trackById" emptyIcon="activity" emptyTitle="No condition rules" emptyMessage="This plan is not condition-based." /></section> }
+      @case ('history') {
+        <amc-panel title="Maintenance history" icon="history" [padded]="false">
+          <ol class="divide-y divide-line">
+            @for (o of visits().slice().reverse(); track o.id) {
+              <li class="px-4 py-3 text-sm sm:px-5">
+                <div class="flex flex-wrap items-center gap-2"><span class="font-medium text-ink">{{ formatDate(o.completion!.endedAt) }}</span><span class="text-ink-muted">· {{ o.assetName }} · {{ o.technician }}</span><amc-status-badge class="ml-auto" [label]="o.completion!.result.replace('Maintenance ', '')" [tone]="o.completion!.result === 'Maintenance Completed Successfully' ? 'ok' : 'warn'" /></div>
+                <p class="mt-1 text-xs text-ink-muted">{{ fd(o.completion!.durationMinutes) }} · condition {{ o.completion!.assetCondition }} · {{ o.completion!.checklist.length }} checklist item(s){{ o.completion!.defects ? ' · defect: ' + o.completion!.defects : '' }}{{ o.correctiveWorkOrderIds.length ? ' · corrective WO raised' : '' }} · {{ o.completion!.reportNumber }}</p>
+              </li>
+            } @empty { <li class="p-6 text-center text-sm text-ink-muted">No maintenance has been completed yet.</li> }
+          </ol>
+        </amc-panel>
+      }
+      @case ('cost') {
+        @let c = cost();
+        <amc-panel title="Maintenance cost" description="Operational cost passed to Cost & Profitability" icon="wallet">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+            <amc-detail-item label="Technician Labor" [value]="formatCurrency(c.labour, 'SAR')" />
+            <amc-detail-item label="Parts" [value]="formatCurrency(c.parts, 'SAR')" />
+            <amc-detail-item label="Consumables" [value]="formatCurrency(c.consumables, 'SAR')" />
+            <amc-detail-item label="Tools" [value]="formatCurrency(c.tools, 'SAR')" />
+            <amc-detail-item label="Travel" [value]="formatCurrency(c.travel, 'SAR')" />
+            <amc-detail-item label="Subcontractor" [value]="formatCurrency(c.subcontractor, 'SAR')" />
+            <amc-detail-item label="Other" [value]="formatCurrency(c.other, 'SAR')" />
+            <amc-detail-item label="Total Maintenance Cost" [value]="formatCurrency(c.total, 'SAR')" />
+          </dl>
+          <p class="mt-4 text-xs text-ink-muted">Labor at SAR {{ laborRate }}/h from actual durations; parts and consumables at unit cost. Detailed financial calculations belong to Cost &amp; Profitability.</p>
+        </amc-panel>
+      }
+      @case ('documents') {
+        <amc-panel title="Documents" icon="paperclip" [padded]="false">
+          <div panelActions class="flex items-center gap-2">
+            <amc-select inputId="pd-doctype" class="w-52" [options]="docTypeOptions" [(value)]="uploadType" ariaLabel="Document type" />
+            <label for="pd-files" class="amc-btn-secondary amc-btn-sm cursor-pointer"><amc-icon name="upload" [size]="14" /> Upload<input id="pd-files" type="file" multiple class="sr-only" (change)="upload($event)" /></label>
+          </div>
+          <ul class="divide-y divide-line">
+            @for (d of plan.documents; track d.id) { <li class="flex items-center gap-3 px-4 py-3 sm:px-5"><amc-icon name="paperclip" class="text-ink-subtle" /><span class="min-w-0 flex-1 truncate text-sm">{{ d.name }}</span><span class="text-xs text-ink-muted">{{ d.type }} · {{ formatFileSize(d.size) }} · {{ d.uploadedBy }} · {{ formatDate(d.uploadedAt) }}</span></li> } @empty { <li class="p-6 text-center text-sm text-ink-muted">No documents.</li> }
+          </ul>
+        </amc-panel>
+      }
+      @case ('audit') { <amc-pm-history-timeline [planId]="plan.id" [refreshKey]="refreshKey()" /> }
+    }
+  </div>
+}
+<amc-plan-action-host (done)="refresh()" />
+<amc-occurrence-action-host (done)="refresh()" />
